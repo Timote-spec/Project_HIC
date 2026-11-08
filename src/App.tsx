@@ -127,17 +127,20 @@ const Ico = {
 
 // ─── Layout Shell ─────────────────────────────────────────────────────────────
 
-function PhoneFrame({ children }: { children: React.ReactNode }) {
+type ThemeMode = "Light" | "Dark";
+
+function PhoneFrame({ children, theme }: { children: React.ReactNode; theme: ThemeMode }) {
+  const isDark = theme === "Dark";
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(145deg, #b8ccec 0%, #c5daf5 30%, #cccaf0 65%, #d0c8f0 100%)", padding: 16, boxSizing: "border-box" }}>
-      <div style={{ width: 393, minHeight: 852, maxHeight: "calc(100vh - 32px)", borderRadius: 52, overflow: "hidden", boxShadow: "0 48px 120px rgba(40,60,120,0.38), 0 0 0 10px rgba(255,255,255,0.18), 0 0 0 11px rgba(180,200,255,0.28)", position: "relative", background: "linear-gradient(150deg, #eaf4ff 0%, #ddeeff 12%, #e2e6ff 36%, #ede6ff 62%, #eaedff 82%, #dcf6ff 100%)", display: "flex", flexDirection: "column", flex: "none" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: isDark ? "linear-gradient(145deg, #101827 0%, #1e293b 35%, #0f172a 100%)" : "linear-gradient(145deg, #b8ccec 0%, #c5daf5 30%, #cccaf0 65%, #d0c8f0 100%)", padding: 16, boxSizing: "border-box" }}>
+      <div style={{ width: 393, minHeight: 852, maxHeight: "calc(100vh - 32px)", borderRadius: 52, overflow: "hidden", boxShadow: isDark ? "0 48px 120px rgba(2,6,23,0.6), 0 0 0 10px rgba(148,163,184,0.08), 0 0 0 11px rgba(30,41,59,0.2)" : "0 48px 120px rgba(40,60,120,0.38), 0 0 0 10px rgba(255,255,255,0.18), 0 0 0 11px rgba(180,200,255,0.28)", position: "relative", background: isDark ? "linear-gradient(150deg, #111827 0%, #172033 18%, #0f172a 52%, #111827 100%)" : "linear-gradient(150deg, #eaf4ff 0%, #ddeeff 12%, #e2e6ff 36%, #ede6ff 62%, #eaedff 82%, #dcf6ff 100%)", display: "flex", flexDirection: "column", flex: "none" }}>
         {children}
       </div>
     </div>
   );
 }
 
-function StatusBar() {
+function StatusBar({ theme }: { theme: ThemeMode }) {
   const [time, setTime] = useState(() => {
     const n = new Date(); return `${n.getHours() % 12 || 12}:${n.getMinutes().toString().padStart(2, "0")}`;
   });
@@ -145,33 +148,38 @@ function StatusBar() {
     const t = setInterval(() => { const n = new Date(); setTime(`${n.getHours() % 12 || 12}:${n.getMinutes().toString().padStart(2, "0")}`); }, 15000);
     return () => clearInterval(t);
   }, []);
+
+  const isDark = theme === "Dark";
+  const statusColor = isDark ? "rgba(226,232,240,0.9)" : "rgba(20,45,100,0.85)";
+
   return (
     <div style={{ height: 50, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px", flexShrink: 0, paddingTop: 6 }}>
-      <span style={{ fontFamily: "Poppins,sans-serif", fontWeight: 600, fontSize: 15, color: "rgba(20,45,100,0.85)" }}>{time}</span>
+      <span style={{ fontFamily: "Poppins,sans-serif", fontWeight: 600, fontSize: 15, color: statusColor }}>{time}</span>
       <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
         {/* Signal */}
-        <svg width="17" height="12" viewBox="0 0 17 12" fill="rgba(20,45,100,0.7)">
+        <svg width="17" height="12" viewBox="0 0 17 12" fill={isDark ? "rgba(226,232,240,0.8)" : "rgba(20,45,100,0.7)"}>
           <rect x="0" y="8" width="3" height="4" rx="1" /><rect x="4.5" y="5.5" width="3" height="6.5" rx="1" /><rect x="9" y="2.5" width="3" height="9.5" rx="1" /><rect x="13.5" y="0" width="3" height="12" rx="1" />
         </svg>
         {/* Wifi */}
-        <svg width="17" height="13" viewBox="0 0 17 13" fill="rgba(20,45,100,0.7)">
+        <svg width="17" height="13" viewBox="0 0 17 13" fill={isDark ? "rgba(226,232,240,0.8)" : "rgba(20,45,100,0.7)"}>
           <path d="M8.5 10.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z" />
           <path d="M8.5 7C10.3 7 11.9 7.7 13.1 8.9L14.2 7.8C12.7 6.3 10.7 5.4 8.5 5.4S4.3 6.3 2.8 7.8l1.1 1.1C5.1 7.7 6.7 7 8.5 7z" />
           <path d="M8.5 3.8C11.4 3.8 14 4.9 15.9 6.8L17 5.7C14.8 3.5 11.8 2.2 8.5 2.2S2.2 3.5 0 5.7l1.1 1.1C3 4.9 5.6 3.8 8.5 3.8z" />
         </svg>
         {/* Battery */}
         <div style={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <div style={{ width: 26, height: 13, border: "1.5px solid rgba(20,45,100,0.65)", borderRadius: 3.5, padding: "2px", display: "flex", alignItems: "center" }}>
-            <div style={{ width: "82%", height: "100%", background: "rgba(20,45,100,0.7)", borderRadius: 1.5 }} />
+          <div style={{ width: 26, height: 13, border: `1.5px solid ${isDark ? "rgba(226,232,240,0.7)" : "rgba(20,45,100,0.65)"}`, borderRadius: 3.5, padding: "2px", display: "flex", alignItems: "center" }}>
+            <div style={{ width: "82%", height: "100%", background: isDark ? "rgba(226,232,240,0.8)" : "rgba(20,45,100,0.7)", borderRadius: 1.5 }} />
           </div>
-          <div style={{ width: 2, height: 6, background: "rgba(20,45,100,0.55)", borderRadius: 1 }} />
+          <div style={{ width: 2, height: 6, background: isDark ? "rgba(226,232,240,0.7)" : "rgba(20,45,100,0.55)", borderRadius: 1 }} />
         </div>
       </div>
     </div>
   );
 }
 
-function BottomNav({ active, onNav }: { active: Screen; onNav: (s: Screen) => void }) {
+function BottomNav({ active, onNav, theme }: { active: Screen; onNav: (s: Screen) => void; theme: ThemeMode }) {
+  const isDark = theme === "Dark";
   const items: { id: Screen; label: string; icon: () => React.ReactNode }[] = [
     { id: "dashboard", label: "Home", icon: () => Ico.home(active === "dashboard") },
     { id: "deadlines", label: "Tasks", icon: () => Ico.tasks(active === "deadlines") },
@@ -181,13 +189,13 @@ function BottomNav({ active, onNav }: { active: Screen; onNav: (s: Screen) => vo
   ];
   return (
     <div style={{ padding: "6px 14px 14px", flexShrink: 0 }}>
-      <div style={{ ...S.glassNav, borderRadius: 30, padding: "10px 6px", display: "flex", justifyContent: "space-around" }}>
+      <div style={{ ...S.glassNav, background: isDark ? "rgba(15,23,42,0.78)" : "rgba(255,255,255,0.3)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(255,255,255,0.5)", borderRadius: 30, padding: "10px 6px", display: "flex", justifyContent: "space-around" }}>
         {items.map((item) => {
           const isActive = active === item.id;
           return (
-            <button key={item.id} onClick={() => onNav(item.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "6px 12px", minWidth: 44, minHeight: 44, justifyContent: "center", borderRadius: 20, background: isActive ? "rgba(59,130,246,0.13)" : "transparent", border: "none", cursor: "pointer", transition: "background 0.2s" }}>
+            <button key={item.id} onClick={() => onNav(item.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "6px 12px", minWidth: 44, minHeight: 44, justifyContent: "center", borderRadius: 20, background: isActive ? (isDark ? "rgba(96,165,250,0.17)" : "rgba(59,130,246,0.13)") : "transparent", border: "none", cursor: "pointer", transition: "background 0.2s" }}>
               {item.icon()}
-              <span style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: isActive ? 700 : 400, color: isActive ? "#3b82f6" : "rgba(80,105,150,0.65)", letterSpacing: 0.1 }}>{item.label}</span>
+              <span style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: isActive ? 700 : 400, color: isActive ? "#60a5fa" : isDark ? "rgba(203,213,225,0.8)" : "rgba(80,105,150,0.65)", letterSpacing: 0.1 }}>{item.label}</span>
             </button>
           );
         })}
@@ -207,10 +215,11 @@ function BackBtn({ onPress, label }: { onPress: () => void; label?: string }) {
   );
 }
 
-function SectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
+function SectionHeader({ title, action, theme }: { title: string; action?: React.ReactNode; theme?: ThemeMode }) {
+  const isDark = theme === "Dark";
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-      <p style={S.sectionTitle}>{title}</p>
+      <p style={{ ...S.sectionTitle, color: isDark ? "#e2e8f0" : "rgba(18,36,80,0.88)" }}>{title}</p>
       {action}
     </div>
   );
@@ -236,20 +245,21 @@ function TypeBadge({ taskType }: { taskType: TaskType }) {
 
 // ─── Deadline Card ────────────────────────────────────────────────────────────
 
-function DeadlineCard({ d, onPress }: { d: Deadline; onPress: () => void }) {
+function DeadlineCard({ d, onPress, theme }: { d: Deadline; onPress: () => void; theme?: ThemeMode }) {
+  const isDark = theme === "Dark";
   const countdown = d.completed ? null : getCountdown(d.dueDate, d.dueTime);
   const countdownColor = countdown === "Overdue" ? "#ef4444" : countdown && (countdown.includes("m") && !countdown.includes("d")) ? "#f97316" : "#3b82f6";
 
   return (
     <button onClick={onPress} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", marginBottom: 10, display: "block" }}>
-      <div style={{ ...S.glassCard, borderRadius: 22, padding: "14px 16px", borderLeft: `3.5px solid ${d.completed ? "#22c55e" : PRIORITY_COLOR[d.priority]}`, opacity: d.completed ? 0.75 : 1, transition: "opacity 0.2s" }}>
+      <div style={{ ...S.glassCard, borderRadius: 22, padding: "14px 16px", borderLeft: `3.5px solid ${d.completed ? "#22c55e" : PRIORITY_COLOR[d.priority]}`, opacity: d.completed ? 0.75 : 1, transition: "opacity 0.2s", background: isDark ? "rgba(15,23,42,0.72)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
               <span style={{ fontSize: 13 }}>{TYPE_ICON[d.taskType]}</span>
-              <span style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 700, color: "rgba(60,90,160,0.6)", letterSpacing: 0.6, textTransform: "uppercase" as const }}>{d.subject}</span>
+              <span style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 700, color: isDark ? "#9db0ca" : "rgba(60,90,160,0.6)", letterSpacing: 0.6, textTransform: "uppercase" as const }}>{d.subject}</span>
             </div>
-            <p style={{ fontFamily: "Poppins,sans-serif", fontWeight: 600, fontSize: 15, color: "rgba(18,36,80,0.92)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.taskName}</p>
+            <p style={{ fontFamily: "Poppins,sans-serif", fontWeight: 600, fontSize: 15, color: isDark ? "#f8fafc" : "rgba(18,36,80,0.92)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.taskName}</p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flexShrink: 0 }}>
             <PriorityBadge priority={d.priority} />
@@ -257,7 +267,7 @@ function DeadlineCard({ d, onPress }: { d: Deadline; onPress: () => void }) {
           </div>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ ...S.caption }}>{formatDate(d.dueDate)} · {formatTime(d.dueTime)}</span>
+          <span style={{ ...S.caption, color: isDark ? "#b5c2d9" : undefined }}>{formatDate(d.dueDate)} · {formatTime(d.dueTime)}</span>
           {countdown && <span style={{ fontFamily: "Inter,sans-serif", fontSize: 12, fontWeight: 700, color: countdownColor }}>{countdown}</span>}
         </div>
       </div>
@@ -267,32 +277,35 @@ function DeadlineCard({ d, onPress }: { d: Deadline; onPress: () => void }) {
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
 
-function EmptyState({ emoji, title, body }: { emoji: string; title: string; body: string }) {
+function EmptyState({ emoji, title, body, theme }: { emoji: string; title: string; body: string; theme?: ThemeMode }) {
+  const isDark = theme === "Dark";
   return (
-    <div style={{ ...S.glassCard, borderRadius: 24, padding: "36px 24px", textAlign: "center" }}>
+    <div style={{ ...S.glassCard, borderRadius: 24, padding: "36px 24px", textAlign: "center", background: isDark ? "rgba(15,23,42,0.7)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
       <div style={{ fontSize: 44, marginBottom: 12 }}>{emoji}</div>
-      <p style={{ fontFamily: "Poppins,sans-serif", fontWeight: 600, fontSize: 16, color: "rgba(18,36,80,0.7)", margin: "0 0 6px" }}>{title}</p>
-      <p style={{ ...S.caption, margin: 0 }}>{body}</p>
+      <p style={{ fontFamily: "Poppins,sans-serif", fontWeight: 600, fontSize: 16, color: isDark ? "#e2e8f0" : "rgba(18,36,80,0.7)", margin: "0 0 6px" }}>{title}</p>
+      <p style={{ ...S.caption, margin: 0, color: isDark ? "#b5c2d9" : undefined }}>{body}</p>
     </div>
   );
 }
 
 // ─── Form Field ───────────────────────────────────────────────────────────────
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({ label, error, children, theme }: { label: string; error?: string; children: React.ReactNode; theme?: ThemeMode }) {
+  const isDark = theme === "Dark";
   return (
     <div>
-      <label style={S.label}>{label}</label>
+      <label style={{ ...S.label, color: isDark ? "#bfd0ea" : undefined }}>{label}</label>
       {children}
       {error && <p style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "#ef4444", margin: "5px 0 0 4px", display: "flex", alignItems: "center", gap: 4 }}><span>⚠</span>{error}</p>}
     </div>
   );
 }
 
-function GlassInput({ value, onChange, placeholder, type = "text" }: { value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
+function GlassInput({ value, onChange, placeholder, type = "text", theme }: { value: string; onChange: (v: string) => void; placeholder?: string; type?: string; theme?: ThemeMode }) {
+  const isDark = theme === "Dark";
   return (
-    <div style={{ ...S.glass, borderRadius: 17, overflow: "hidden" }}>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={{ ...S.input, "::placeholder": { color: "rgba(80,110,180,0.35)" } } as React.CSSProperties} />
+    <div style={{ ...S.glass, borderRadius: 17, overflow: "hidden", background: isDark ? "rgba(15,23,42,0.68)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={{ ...S.input, color: isDark ? "#e2e8f0" : undefined, "::placeholder": { color: isDark ? "rgba(148,163,184,0.7)" : "rgba(80,110,180,0.35)" } } as React.CSSProperties} />
     </div>
   );
 }
@@ -316,7 +329,8 @@ function SkeletonCard() {
 
 // ─── SCREEN: Login ────────────────────────────────────────────────────────────
 
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
+function LoginScreen({ onLogin, theme }: { onLogin: () => void; theme: ThemeMode }) {
+  const isDark = theme === "Dark";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -346,22 +360,22 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         <div style={{ ...S.glassCard, width: 84, height: 84, borderRadius: 26, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", background: "linear-gradient(135deg, rgba(59,130,246,0.28), rgba(147,51,234,0.18))" }}>
           <span style={{ fontSize: 38 }}>📚</span>
         </div>
-        <h1 style={{ ...S.h1, fontSize: 32, letterSpacing: -0.6, marginBottom: 4 }}>StudySync</h1>
+        <h1 style={{ ...S.h1, fontSize: 32, letterSpacing: -0.6, marginBottom: 4 }}>DueDash</h1>
         <p style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(60,90,180,0.5)", letterSpacing: 1.2, textTransform: "uppercase", margin: 0 }}>Student Productivity</p>
       </div>
 
-      <div style={{ ...S.glassCard, borderRadius: 30, padding: "26px 22px" }}>
-        <h2 style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 23, color: "rgba(18,36,80,0.95)", margin: "0 0 4px" }}>Welcome Back! 👋</h2>
-        <p style={{ ...S.body, margin: "0 0 22px", fontSize: 13 }}>Stay ahead of every deadline.</p>
+      <div style={{ ...S.glassCard, borderRadius: 30, padding: "26px 22px", background: isDark ? "rgba(15,23,42,0.72)" : "rgba(255,255,255,0.38)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(255,255,255,0.55)" }}>
+        <h2 style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 23, color: isDark ? "#f8fafc" : "rgba(18,36,80,0.95)", margin: "0 0 4px" }}>Welcome Back! 👋</h2>
+        <p style={{ ...S.body, margin: "0 0 22px", fontSize: 13, color: isDark ? "#cbd5e1" : "rgba(40,70,140,0.75)" }}>Stay ahead of every deadline.</p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <Field label="Student ID / Email" error={errors.email}>
-            <GlassInput value={email} onChange={(v) => { setEmail(v); setErrors((x) => ({ ...x, email: undefined })); }} placeholder="student@university.edu" />
+          <Field label="Student ID / Email" error={errors.email} theme={theme}>
+            <GlassInput theme={theme} value={email} onChange={(v) => { setEmail(v); setErrors((x) => ({ ...x, email: undefined })); }} placeholder="student@university.edu" />
           </Field>
 
-          <Field label="Password" error={errors.password}>
-            <div style={{ ...S.glass, borderRadius: 17, display: "flex", alignItems: "center", overflow: "hidden" }}>
-              <input type={showPw ? "text" : "password"} value={password} onChange={(e) => { setPassword(e.target.value); setErrors((x) => ({ ...x, password: undefined })); }} placeholder="••••••••" style={{ ...S.input, flex: 1 }} />
+          <Field label="Password" error={errors.password} theme={theme}>
+            <div style={{ ...S.glass, borderRadius: 17, display: "flex", alignItems: "center", overflow: "hidden", background: isDark ? "rgba(15,23,42,0.68)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
+              <input type={showPw ? "text" : "password"} value={password} onChange={(e) => { setPassword(e.target.value); setErrors((x) => ({ ...x, password: undefined })); }} placeholder="••••••••" style={{ ...S.input, flex: 1, color: isDark ? "#e2e8f0" : undefined }} />
               <button onClick={() => setShowPw((v) => !v)} style={{ background: "none", border: "none", padding: "0 14px", cursor: "pointer", display: "flex", alignItems: "center" }}>
                 {showPw ? Ico.eyeOff() : Ico.eye()}
               </button>
@@ -401,7 +415,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
 // ─── SCREEN: Dashboard ────────────────────────────────────────────────────────
 
-function DashboardScreen({ deadlines, onNav, onDeadline, onAdd }: { deadlines: Deadline[]; onNav: (s: Screen) => void; onDeadline: (d: Deadline) => void; onAdd: () => void }) {
+function DashboardScreen({ deadlines, onNav, onDeadline, onAdd, theme }: { deadlines: Deadline[]; onNav: (s: Screen) => void; onDeadline: (d: Deadline) => void; onAdd: () => void; theme: ThemeMode }) {
+  const isDark = theme === "Dark";
   const [loading] = useState(false);
   const todayItems = deadlines.filter((d) => !d.completed && isToday(d.dueDate));
   const weekItems = deadlines.filter((d) => !d.completed && isThisWeek(d.dueDate));
@@ -421,11 +436,11 @@ function DashboardScreen({ deadlines, onNav, onDeadline, onAdd }: { deadlines: D
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div>
-          <p style={{ ...S.caption, margin: 0, fontSize: 13 }}>{greeting},</p>
-          <h2 style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 22, color: "rgba(18,36,80,0.95)", margin: "1px 0 0" }}>Timothy 👋</h2>
+          <p style={{ ...S.caption, margin: 0, fontSize: 13, color: isDark ? "#94a3b8" : "rgba(60,90,160,0.55)" }}>{greeting},</p>
+          <h2 style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 22, color: isDark ? "#f8fafc" : "rgba(18,36,80,0.95)", margin: "1px 0 0" }}>Timothy 👋</h2>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => onNav("notifications")} style={{ ...S.iconBtn, ...S.glass, background: "rgba(255,255,255,0.4)" }}>
+          <button onClick={() => onNav("notifications")} style={{ ...S.iconBtn, ...S.glass, background: isDark ? "rgba(15,23,42,0.7)" : "rgba(255,255,255,0.4)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
             {Ico.bell(false, true)}
           </button>
           <div style={{ width: 44, height: 44, borderRadius: 15, background: "linear-gradient(135deg,#3b82f6,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 17, color: "#fff", boxShadow: "0 4px 14px rgba(59,130,246,0.3)", flexShrink: 0 }}>A</div>
@@ -435,33 +450,33 @@ function DashboardScreen({ deadlines, onNav, onDeadline, onAdd }: { deadlines: D
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 22 }}>
         {stats.map((s) => (
-          <div key={s.label} style={{ ...S.glassCard, borderRadius: 22, padding: "14px 15px", background: s.bg }}>
+          <div key={s.label} style={{ ...S.glassCard, borderRadius: 22, padding: "14px 15px", background: isDark ? "rgba(15,23,42,0.72)" : s.bg, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <span style={{ fontSize: 20 }}>{s.emoji}</span>
               <span style={{ fontFamily: "Poppins,sans-serif", fontWeight: 800, fontSize: 28, color: s.color, lineHeight: 1 }}>{s.value}</span>
             </div>
-            <p style={{ fontFamily: "Inter,sans-serif", fontSize: 12, fontWeight: 600, color: "rgba(60,90,160,0.7)", margin: "8px 0 0" }}>{s.label}</p>
+            <p style={{ fontFamily: "Inter,sans-serif", fontSize: 12, fontWeight: 600, color: isDark ? "#cbd5e1" : "rgba(60,90,160,0.7)", margin: "8px 0 0" }}>{s.label}</p>
           </div>
         ))}
       </div>
 
       {/* Today's Priorities */}
-      <SectionHeader title="Today's Priorities" action={<AddBtn onPress={onAdd} />} />
+      <SectionHeader title="Today's Priorities" action={<AddBtn onPress={onAdd} />} theme={theme} />
       {loading ? (
         <><SkeletonCard /><SkeletonCard /></>
       ) : todayItems.length === 0 ? (
-        <EmptyState emoji="🎉" title="You're All Caught Up!" body="No deadlines due today. Keep it up!" />
+        <EmptyState emoji="🎉" title="You're All Caught Up!" body="No deadlines due today. Keep it up!" theme={theme} />
       ) : (
-        todayItems.map((d) => <DeadlineCard key={d.id} d={d} onPress={() => onDeadline(d)} />)
+        todayItems.map((d) => <DeadlineCard key={d.id} d={d} onPress={() => onDeadline(d)} theme={theme} />)
       )}
 
       {/* Upcoming */}
       {weekItems.filter((d) => !isToday(d.dueDate)).length > 0 && (
         <>
           <div style={{ height: 16 }} />
-          <SectionHeader title="Upcoming This Week" />
+          <SectionHeader title="Upcoming This Week" theme={theme} />
           {weekItems.filter((d) => !isToday(d.dueDate)).slice(0, 3).map((d) => (
-            <DeadlineCard key={d.id} d={d} onPress={() => onDeadline(d)} />
+            <DeadlineCard key={d.id} d={d} onPress={() => onDeadline(d)} theme={theme} />
           ))}
         </>
       )}
@@ -475,7 +490,8 @@ function DashboardScreen({ deadlines, onNav, onDeadline, onAdd }: { deadlines: D
 
 // ─── SCREEN: Deadlines ────────────────────────────────────────────────────────
 
-function DeadlinesScreen({ deadlines, onDeadline, onAdd }: { deadlines: Deadline[]; onDeadline: (d: Deadline) => void; onAdd: () => void }) {
+function DeadlinesScreen({ deadlines, onDeadline, onAdd, theme }: { deadlines: Deadline[]; onDeadline: (d: Deadline) => void; onAdd: () => void; theme: ThemeMode }) {
+  const isDark = theme === "Dark";
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterType>("All");
 
@@ -492,21 +508,21 @@ function DeadlinesScreen({ deadlines, onDeadline, onAdd }: { deadlines: Deadline
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 8px" }} className="anim-slide">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-        <h2 style={S.h2}>My Deadlines</h2>
+        <h2 style={{ ...S.h2, color: isDark ? "#f8fafc" : undefined }}>My Deadlines</h2>
         <AddBtn onPress={onAdd} />
       </div>
 
       {/* Search */}
-      <div style={{ ...S.glass, borderRadius: 17, display: "flex", alignItems: "center", gap: 8, padding: "11px 14px", marginBottom: 12 }}>
+      <div style={{ ...S.glass, borderRadius: 17, display: "flex", alignItems: "center", gap: 8, padding: "11px 14px", marginBottom: 12, background: isDark ? "rgba(15,23,42,0.68)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
         {Ico.search()}
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks, subjects..." style={{ flex: 1, background: "transparent", border: "none", fontFamily: "Inter,sans-serif", fontSize: 14, color: "rgba(18,36,80,0.88)", padding: 0 }} />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks, subjects..." style={{ flex: 1, background: "transparent", border: "none", fontFamily: "Inter,sans-serif", fontSize: 14, color: isDark ? "#e2e8f0" : "rgba(18,36,80,0.88)", padding: 0 }} />
         {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(80,110,180,0.5)", fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>}
       </div>
 
       {/* Filters */}
-      <div style={{ display: "flex", gap: 7, marginBottom: 18, paddingBottom: 2 }}>
+      <div style={{ display: "flex", gap: 7, marginBottom: 18, paddingBottom: 2, overflowX: "auto" }}>
         {(["All", "Today", "This Week", "Completed"] as FilterType[]).map((f) => (
-          <button key={f} onClick={() => setFilter(f)} style={{ flexShrink: 0, padding: "8px 15px", borderRadius: 22, border: filter === f ? "none" : "1px solid rgba(100,140,220,0.22)", background: filter === f ? "linear-gradient(135deg,#3b82f6,#6366f1)" : "rgba(255,255,255,0.3)", fontFamily: "Inter,sans-serif", fontSize: 12, fontWeight: filter === f ? 700 : 400, color: filter === f ? "#fff" : "rgba(60,90,160,0.7)", cursor: "pointer", transition: "all 0.2s", boxShadow: filter === f ? "0 4px 12px rgba(59,130,246,0.3)" : "none" }}>
+          <button key={f} onClick={() => setFilter(f)} style={{ flexShrink: 0, padding: "8px 15px", borderRadius: 22, border: filter === f ? "none" : isDark ? "1px solid rgba(148,163,184,0.2)" : "1px solid rgba(100,140,220,0.22)", background: filter === f ? "linear-gradient(135deg,#3b82f6,#6366f1)" : isDark ? "rgba(15,23,42,0.6)" : "rgba(255,255,255,0.3)", fontFamily: "Inter,sans-serif", fontSize: 12, fontWeight: filter === f ? 700 : 400, color: filter === f ? "#fff" : isDark ? "#cbd5e1" : "rgba(60,90,160,0.7)", cursor: "pointer", transition: "all 0.2s", boxShadow: filter === f ? "0 4px 12px rgba(59,130,246,0.3)" : "none" }}>
             {f}
           </button>
         ))}
@@ -517,12 +533,12 @@ function DeadlinesScreen({ deadlines, onDeadline, onAdd }: { deadlines: Deadline
 
       {filtered.length === 0 ? (
         search
-          ? <EmptyState emoji="🔍" title="No Results Found" body={`No tasks match "${search}"`} />
+          ? <EmptyState emoji="🔍" title="No Results Found" body={`No tasks match "${search}"`} theme={theme} />
           : filter === "Completed"
-          ? <EmptyState emoji="🌟" title="Nothing Completed Yet" body="Complete a deadline and it will appear here" />
-          : <EmptyState emoji="📭" title="No Deadlines Yet" body="Tap + to add your first deadline" />
+          ? <EmptyState emoji="🌟" title="Nothing Completed Yet" body="Complete a deadline and it will appear here" theme={theme} />
+          : <EmptyState emoji="📭" title="No Deadlines Yet" body="Tap + to add your first deadline" theme={theme} />
       ) : (
-        filtered.map((d) => <DeadlineCard key={d.id} d={d} onPress={() => onDeadline(d)} />)
+        filtered.map((d) => <DeadlineCard key={d.id} d={d} onPress={() => onDeadline(d)} theme={theme} />)
       )}
     </div>
   );
@@ -537,7 +553,8 @@ interface DeadlineFormProps {
   title: string;
 }
 
-function DeadlineFormScreen({ initial, onSave, onBack, title }: DeadlineFormProps) {
+function DeadlineFormScreen({ initial, onSave, onBack, title, theme }: DeadlineFormProps & { theme: ThemeMode }) {
+  const isDark = theme === "Dark";
   const [form, setForm] = useState({
     taskName: initial?.taskName ?? "",
     subject: initial?.subject ?? "",
@@ -572,54 +589,54 @@ function DeadlineFormScreen({ initial, onSave, onBack, title }: DeadlineFormProp
     <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 24px" }} className="anim-slide">
       <BackBtn onPress={onBack} label={title} />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
-        {/* Task Name */}
-        <Field label="Task Name" error={errors.taskName}>
-          <GlassInput value={form.taskName} onChange={(v) => set("taskName", v)} placeholder="e.g. Final Project" />
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <Field label="Task Name" error={errors.taskName} theme={theme}>
+          <div style={{ borderRadius: 14, background: isDark ? "rgba(12,18,31,0.28)" : "rgba(255,255,255,0.12)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(96,165,250,0.08)", boxShadow: isDark ? "inset 0 1px 0 rgba(148,163,184,0.04)" : "none", overflow: "hidden" }}>
+            <input value={form.taskName} onChange={(e) => set("taskName", e.target.value)} placeholder="e.g. Final Project" style={{ ...S.input, color: isDark ? "#e2e8f0" : undefined, padding: "14px 16px", fontSize: 15 }} />
+          </div>
         </Field>
 
-        {/* Subject */}
-        <Field label="Subject" error={errors.subject}>
-          <GlassInput value={form.subject} onChange={(v) => set("subject", v)} placeholder="e.g. Database Management" />
+        <Field label="Subject" error={errors.subject} theme={theme}>
+          <div style={{ borderRadius: 14, background: isDark ? "rgba(12,18,31,0.28)" : "rgba(255,255,255,0.12)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(96,165,250,0.08)", boxShadow: isDark ? "inset 0 1px 0 rgba(148,163,184,0.04)" : "none", overflow: "hidden" }}>
+            <input value={form.subject} onChange={(e) => set("subject", e.target.value)} placeholder="e.g. Database Management" style={{ ...S.input, color: isDark ? "#e2e8f0" : undefined, padding: "14px 16px", fontSize: 15 }} />
+          </div>
         </Field>
 
-        {/* Task Type */}
-        <Field label="Task Type">
-          <div style={{ ...S.glass, borderRadius: 17, padding: "11px 12px", display: "flex", flexWrap: "wrap", gap: 7 }}>
+        <Field label="Task Type" theme={theme}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "8px 8px", borderRadius: 16, background: isDark ? "rgba(12,18,31,0.28)" : "rgba(255,255,255,0.12)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(96,165,250,0.08)" }}>
             {(["Assignment", "Project", "Quiz", "Exam", "Presentation", "Other"] as TaskType[]).map((t) => (
-              <button key={t} onClick={() => set("taskType", t)} style={{ padding: "7px 13px", borderRadius: 13, border: form.taskType === t ? "none" : "1px solid rgba(100,140,220,0.2)", background: form.taskType === t ? `${TYPE_COLOR[t]}` : "rgba(255,255,255,0.32)", fontFamily: "Inter,sans-serif", fontSize: 12, fontWeight: form.taskType === t ? 700 : 400, color: form.taskType === t ? "#fff" : "rgba(60,90,160,0.7)", cursor: "pointer", transition: "all 0.18s", boxShadow: form.taskType === t ? `0 3px 10px ${TYPE_COLOR[t]}44` : "none" }}>
+              <button key={t} onClick={() => set("taskType", t)} style={{ minWidth: 92, flex: "1 1 30%", padding: "9px 10px", borderRadius: 12, border: form.taskType === t ? "none" : isDark ? "1px solid rgba(148,163,184,0.14)" : "1px solid rgba(100,140,220,0.18)", background: form.taskType === t ? `${TYPE_COLOR[t]}` : isDark ? "rgba(15,23,42,0.62)" : "rgba(255,255,255,0.24)", fontFamily: "Inter,sans-serif", fontSize: 12, fontWeight: form.taskType === t ? 700 : 600, color: form.taskType === t ? "#fff" : isDark ? "#dfeaf9" : "rgba(60,90,160,0.75)", cursor: "pointer", transition: "all 0.18s", boxShadow: form.taskType === t ? `0 4px 12px ${TYPE_COLOR[t]}44` : "none" }}>
                 {TYPE_ICON[t]} {t}
               </button>
             ))}
           </div>
         </Field>
 
-        {/* Description */}
-        <Field label="Description (optional)">
-          <div style={{ ...S.glass, borderRadius: 17 }}>
-            <textarea value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Task details, requirements, notes..." rows={3} style={{ ...S.input, resize: "none", lineHeight: 1.5, paddingTop: 14 }} />
+        <Field label="Description (optional)" theme={theme}>
+          <div style={{ borderRadius: 14, background: isDark ? "rgba(12,18,31,0.28)" : "rgba(255,255,255,0.12)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(96,165,250,0.08)", boxShadow: isDark ? "inset 0 1px 0 rgba(148,163,184,0.04)" : "none", overflow: "hidden" }}>
+            <textarea value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Task details, requirements, notes..." rows={3} style={{ ...S.input, resize: "none", lineHeight: 1.5, paddingTop: 14, color: isDark ? "#e2e8f0" : undefined, minHeight: 66 }} />
           </div>
         </Field>
 
-        {/* Due Date & Time */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <Field label="Due Date" error={errors.dueDate}>
-            <div style={{ ...S.glass, borderRadius: 17 }}>
-              <input type="date" value={form.dueDate} onChange={(e) => set("dueDate", e.target.value)} style={{ ...S.input, fontSize: 13 }} />
+          <Field label="Due Date" error={errors.dueDate} theme={theme}>
+            <div style={{ position: "relative", borderRadius: 14, background: isDark ? "rgba(12,18,31,0.28)" : "rgba(255,255,255,0.12)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(96,165,250,0.08)", overflow: "hidden" }}>
+              <input type="date" value={form.dueDate} onChange={(e) => set("dueDate", e.target.value)} style={{ ...S.input, fontSize: 13, color: isDark ? "#e2e8f0" : undefined, paddingRight: 38 }} />
+              <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", opacity: 0.8 }}>{Ico.calendar(false)}</span>
             </div>
           </Field>
-          <Field label="Due Time">
-            <div style={{ ...S.glass, borderRadius: 17 }}>
-              <input type="time" value={form.dueTime} onChange={(e) => set("dueTime", e.target.value)} style={{ ...S.input, fontSize: 13 }} />
+          <Field label="Due Time" theme={theme}>
+            <div style={{ position: "relative", borderRadius: 14, background: isDark ? "rgba(12,18,31,0.28)" : "rgba(255,255,255,0.12)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(96,165,250,0.08)", overflow: "hidden" }}>
+              <input type="time" value={form.dueTime} onChange={(e) => set("dueTime", e.target.value)} style={{ ...S.input, fontSize: 13, color: isDark ? "#e2e8f0" : undefined, paddingRight: 38 }} />
+              <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", opacity: 0.8 }}>{Ico.bell(false)}</span>
             </div>
           </Field>
         </div>
 
-        {/* Priority */}
-        <Field label="Priority">
-          <div style={{ ...S.glass, borderRadius: 17, padding: "10px 12px", display: "flex", gap: 8 }}>
+        <Field label="Priority" theme={theme}>
+          <div style={{ display: "flex", gap: 8, padding: "8px 10px", borderRadius: 16, background: isDark ? "rgba(12,18,31,0.28)" : "rgba(255,255,255,0.12)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(96,165,250,0.08)" }}>
             {(["Low", "Medium", "High"] as Priority[]).map((p) => (
-              <button key={p} onClick={() => set("priority", p)} style={{ flex: 1, padding: "9px 6px", borderRadius: 14, border: form.priority === p ? "none" : `1.5px solid ${PRIORITY_COLOR[p]}44`, background: form.priority === p ? PRIORITY_COLOR[p] : PRIORITY_BG[p], fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 700, color: form.priority === p ? "#fff" : PRIORITY_COLOR[p], cursor: "pointer", transition: "all 0.18s", boxShadow: form.priority === p ? `0 4px 14px ${PRIORITY_COLOR[p]}44` : "none" }}>
+              <button key={p} onClick={() => set("priority", p)} style={{ flex: 1, padding: "10px 8px", borderRadius: 12, border: form.priority === p ? "none" : `1px solid ${PRIORITY_COLOR[p]}22`, background: form.priority === p ? PRIORITY_COLOR[p] : PRIORITY_BG[p], fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 700, color: form.priority === p ? "#fff" : PRIORITY_COLOR[p], cursor: "pointer", transition: "all 0.18s", boxShadow: form.priority === p ? `0 4px 14px ${PRIORITY_COLOR[p]}44` : "none" }}>
                 {p}
               </button>
             ))}
@@ -627,7 +644,7 @@ function DeadlineFormScreen({ initial, onSave, onBack, title }: DeadlineFormProp
         </Field>
 
         <div style={{ height: 4 }} />
-        <button onClick={submit} style={S.primaryBtn}>{initial ? "Save Changes" : "Add Deadline"}</button>
+        <button onClick={submit} style={{ ...S.primaryBtn, borderRadius: 20, padding: "18px 16px", fontSize: 16, boxShadow: "0 10px 24px rgba(59,130,246,0.34)" }}>{initial ? "Save Changes" : "Add Deadline"}</button>
       </div>
     </div>
   );
@@ -635,7 +652,8 @@ function DeadlineFormScreen({ initial, onSave, onBack, title }: DeadlineFormProp
 
 // ─── SCREEN: Deadline Detail ──────────────────────────────────────────────────
 
-function DeadlineDetailScreen({ d, onBack, onComplete, onDelete, onEdit }: { d: Deadline; onBack: () => void; onComplete: () => void; onDelete: () => void; onEdit: () => void }) {
+function DeadlineDetailScreen({ d, onBack, onComplete, onDelete, onEdit, theme }: { d: Deadline; onBack: () => void; onComplete: () => void; onDelete: () => void; onEdit: () => void; theme: ThemeMode }) {
+  const isDark = theme === "Dark";
   const countdown = d.completed ? null : getCountdown(d.dueDate, d.dueTime);
   const countdownColor = countdown === "Overdue" ? "#ef4444" : "#3b82f6";
   const [delConfirm, setDelConfirm] = useState(false);
@@ -645,14 +663,14 @@ function DeadlineDetailScreen({ d, onBack, onComplete, onDelete, onEdit }: { d: 
       <BackBtn onPress={onBack} label="Deadline Details" />
 
       {/* Hero */}
-      <div style={{ ...S.glassCard, borderRadius: 26, padding: "20px", marginBottom: 14, borderLeft: `4px solid ${d.completed ? "#22c55e" : PRIORITY_COLOR[d.priority]}` }}>
+      <div style={{ ...S.glassCard, borderRadius: 26, padding: "20px", marginBottom: 14, borderLeft: `4px solid ${d.completed ? "#22c55e" : PRIORITY_COLOR[d.priority]}`, background: isDark ? "rgba(15,23,42,0.72)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
               <TypeBadge taskType={d.taskType} />
             </div>
-            <h2 style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 21, color: "rgba(18,36,80,0.95)", margin: "4px 0 2px" }}>{d.taskName}</h2>
-            <p style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: "rgba(60,90,160,0.6)", margin: 0 }}>{d.subject}</p>
+            <h2 style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 21, color: isDark ? "#f8fafc" : "rgba(18,36,80,0.95)", margin: "4px 0 2px" }}>{d.taskName}</h2>
+            <p style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: isDark ? "#b5c2d9" : "rgba(60,90,160,0.6)", margin: 0 }}>{d.subject}</p>
           </div>
           <PriorityBadge priority={d.priority} />
         </div>
@@ -675,7 +693,7 @@ function DeadlineDetailScreen({ d, onBack, onComplete, onDelete, onEdit }: { d: 
       </div>
 
       {/* Details */}
-      <div style={{ ...S.glassCard, borderRadius: 22, padding: "6px 18px", marginBottom: 14 }}>
+      <div style={{ ...S.glassCard, borderRadius: 22, padding: "6px 18px", marginBottom: 14, background: isDark ? "rgba(15,23,42,0.68)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
         {[
           { label: "Due Date", value: formatDate(d.dueDate) },
           { label: "Due Time", value: formatTime(d.dueTime) },
@@ -683,17 +701,17 @@ function DeadlineDetailScreen({ d, onBack, onComplete, onDelete, onEdit }: { d: 
           { label: "Priority", value: d.priority },
         ].map((row, i, arr) => (
           <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 0", borderBottom: i < arr.length - 1 ? "1px solid rgba(100,140,220,0.1)" : "none" }}>
-            <span style={{ ...S.caption, fontWeight: 500 }}>{row.label}</span>
-            <span style={{ fontFamily: "Inter,sans-serif", fontSize: 14, fontWeight: 600, color: "rgba(18,36,80,0.88)" }}>{row.value}</span>
+            <span style={{ ...S.caption, fontWeight: 500, color: isDark ? "#9db0ca" : undefined }}>{row.label}</span>
+            <span style={{ fontFamily: "Inter,sans-serif", fontSize: 14, fontWeight: 600, color: isDark ? "#e2e8f0" : "rgba(18,36,80,0.88)" }}>{row.value}</span>
           </div>
         ))}
       </div>
 
       {/* Description */}
       {d.description && (
-        <div style={{ ...S.glassCard, borderRadius: 22, padding: "16px 18px", marginBottom: 14 }}>
-          <p style={{ ...S.label, marginBottom: 8 }}>Description</p>
-          <p style={{ ...S.body, margin: 0, fontSize: 14 }}>{d.description}</p>
+        <div style={{ ...S.glassCard, borderRadius: 22, padding: "16px 18px", marginBottom: 14, background: isDark ? "rgba(15,23,42,0.68)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
+          <p style={{ ...S.label, marginBottom: 8, color: isDark ? "#bfd0ea" : undefined }}>Description</p>
+          <p style={{ ...S.body, margin: 0, fontSize: 14, color: isDark ? "#dfeaf9" : undefined }}>{d.description}</p>
         </div>
       )}
 
@@ -732,7 +750,8 @@ function DeadlineDetailScreen({ d, onBack, onComplete, onDelete, onEdit }: { d: 
 
 // ─── SCREEN: Completion ───────────────────────────────────────────────────────
 
-function CompletionScreen({ d, deadlines, onDashboard }: { d: Deadline; deadlines: Deadline[]; onDashboard: () => void }) {
+function CompletionScreen({ d, deadlines, onDashboard, theme }: { d: Deadline; deadlines: Deadline[]; onDashboard: () => void; theme: ThemeMode }) {
+  const isDark = theme === "Dark";
   const completedToday = deadlines.filter((x) => x.completed && x.completedAt && isToday(x.completedAt.split("T")[0])).length;
   const remainingWeek = deadlines.filter((x) => !x.completed && isThisWeek(x.dueDate)).length;
   const weekTotal = deadlines.filter((x) => isThisWeek(x.dueDate)).length;
@@ -744,14 +763,14 @@ function CompletionScreen({ d, deadlines, onDashboard }: { d: Deadline; deadline
       <div style={{ height: 40 }} />
 
       {/* Check */}
-      <div style={{ ...S.glassCard, width: 116, height: 116, borderRadius: 38, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 26, background: "rgba(34,197,94,0.13)", border: "2px solid rgba(34,197,94,0.38)", boxShadow: "0 16px 48px rgba(34,197,94,0.24)" }}>
+      <div style={{ ...S.glassCard, width: 116, height: 116, borderRadius: 38, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 26, background: isDark ? "rgba(34,197,94,0.18)" : "rgba(34,197,94,0.13)", border: "2px solid rgba(34,197,94,0.38)", boxShadow: "0 16px 48px rgba(34,197,94,0.24)" }}>
         {Ico.checkLg()}
       </div>
 
-      <h2 style={{ ...S.h1, textAlign: "center", marginBottom: 8, fontSize: 28 }}>Task Completed! 🎉</h2>
-      <p style={{ ...S.body, textAlign: "center", margin: "0 0 32px", maxWidth: 280 }}>
+      <h2 style={{ ...S.h1, textAlign: "center", marginBottom: 8, fontSize: 28, color: isDark ? "#f8fafc" : undefined }}>Task Completed! 🎉</h2>
+      <p style={{ ...S.body, textAlign: "center", margin: "0 0 32px", maxWidth: 280, color: isDark ? "#dfeaf9" : undefined }}>
         Great job! You completed your{" "}
-        <strong style={{ color: "rgba(18,36,80,0.9)", fontWeight: 600 }}>{d.subject} {d.taskName}</strong>.
+        <strong style={{ color: isDark ? "#f8fafc" : "rgba(18,36,80,0.9)", fontWeight: 600 }}>{d.subject} {d.taskName}</strong>.
       </p>
 
       {/* Stats */}
@@ -785,7 +804,8 @@ function CompletionScreen({ d, deadlines, onDashboard }: { d: Deadline; deadline
 
 // ─── SCREEN: Calendar ─────────────────────────────────────────────────────────
 
-function CalendarScreen({ deadlines, onDeadline }: { deadlines: Deadline[]; onDeadline: (d: Deadline) => void }) {
+function CalendarScreen({ deadlines, onDeadline, theme }: { deadlines: Deadline[]; onDeadline: (d: Deadline) => void; theme: ThemeMode }) {
+  const isDark = theme === "Dark";
   const [sel, setSel] = useState(todayStr());
   const [viewMonth, setViewMonth] = useState(new Date());
   const yr = viewMonth.getFullYear(), mo = viewMonth.getMonth();
@@ -798,32 +818,32 @@ function CalendarScreen({ deadlines, onDeadline }: { deadlines: Deadline[]; onDe
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 8px" }} className="anim-slide">
-      <h2 style={{ ...S.h2, marginBottom: 16 }}>Calendar</h2>
+      <h2 style={{ ...S.h2, marginBottom: 16, color: isDark ? "#f8fafc" : undefined }}>Calendar</h2>
 
       {/* Calendar card */}
-      <div style={{ ...S.glassCard, borderRadius: 26, padding: "16px 14px", marginBottom: 14 }}>
+      <div style={{ ...S.glassCard, borderRadius: 26, padding: "16px 14px", marginBottom: 14, background: isDark ? "linear-gradient(180deg, rgba(15,23,42,0.9), rgba(11,18,32,0.8))" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined, boxShadow: isDark ? "inset 0 1px 0 rgba(148,163,184,0.06)" : undefined }}>
         {/* Month nav */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <button onClick={() => setViewMonth(new Date(yr, mo - 1, 1))} style={{ ...S.iconBtn, background: "rgba(59,130,246,0.1)", width: 36, height: 36, borderRadius: 12 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round"><path d="m15 18-6-6 6-6" /></svg>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <button onClick={() => setViewMonth(new Date(yr, mo - 1, 1))} style={{ ...S.iconBtn, background: isDark ? "rgba(96,165,250,0.14)" : "rgba(59,130,246,0.1)", width: 36, height: 36, borderRadius: 12, border: isDark ? "1px solid rgba(96,165,250,0.18)" : undefined }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isDark ? "#dbeafe" : "#3b82f6"} strokeWidth="2.5" strokeLinecap="round"><path d="m15 18-6-6 6-6" /></svg>
           </button>
-          <span style={{ fontFamily: "Poppins,sans-serif", fontWeight: 600, fontSize: 16, color: "rgba(18,36,80,0.9)" }}>
+          <span style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 17, letterSpacing: "-0.02em", color: isDark ? "#f8fafc" : "rgba(18,36,80,0.9)" }}>
             {viewMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
           </span>
-          <button onClick={() => setViewMonth(new Date(yr, mo + 1, 1))} style={{ ...S.iconBtn, background: "rgba(59,130,246,0.1)", width: 36, height: 36, borderRadius: 12 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round"><path d="m9 18 6-6-6-6" /></svg>
+          <button onClick={() => setViewMonth(new Date(yr, mo + 1, 1))} style={{ ...S.iconBtn, background: isDark ? "rgba(96,165,250,0.14)" : "rgba(59,130,246,0.1)", width: 36, height: 36, borderRadius: 12, border: isDark ? "1px solid rgba(96,165,250,0.18)" : undefined }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isDark ? "#dbeafe" : "#3b82f6"} strokeWidth="2.5" strokeLinecap="round"><path d="m9 18 6-6-6-6" /></svg>
           </button>
         </div>
 
         {/* Day labels */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 4 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 6 }}>
           {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-            <div key={d} style={{ textAlign: "center", fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 700, color: "rgba(60,90,160,0.45)", padding: "4px 0" }}>{d}</div>
+            <div key={d} style={{ textAlign: "center", fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 700, color: isDark ? "#9db0ca" : "rgba(60,90,160,0.45)", padding: "4px 0" }}>{d}</div>
           ))}
         </div>
 
         {/* Days grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
           {Array.from({ length: firstDay }).map((_, i) => <div key={`e${i}`} />)}
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const day = i + 1;
@@ -831,12 +851,12 @@ function CalendarScreen({ deadlines, onDeadline }: { deadlines: Deadline[]; onDe
             const isSel = ds === sel, isT = ds === today, has = !!byDate[ds];
             const items = byDate[ds] ?? [];
             return (
-              <button key={day} onClick={() => setSel(ds)} style={{ aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", borderRadius: 11, border: "none", cursor: "pointer", background: isSel ? "linear-gradient(135deg,#3b82f6,#6366f1)" : isT ? "rgba(59,130,246,0.13)" : "transparent", transition: "background 0.15s", gap: 3, padding: 2 }}>
-                <span style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: isT || isSel ? 700 : 400, color: isSel ? "#fff" : isT ? "#3b82f6" : "rgba(18,36,80,0.78)" }}>{day}</span>
+              <button key={day} onClick={() => setSel(ds)} style={{ aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", borderRadius: 11, border: "none", cursor: "pointer", background: isSel ? "linear-gradient(135deg,#3b82f6,#6366f1)" : isT ? "rgba(96,165,250,0.12)" : "transparent", transition: "all 0.18s ease", gap: 3, padding: 2, boxShadow: isSel ? "0 10px 24px rgba(59,130,246,0.38)" : "none" }}>
+                <span style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: isT || isSel ? 700 : 500, color: isSel ? "#fff" : isT ? "#dbeafe" : isDark ? "#e2e8f0" : "rgba(18,36,80,0.78)" }}>{day}</span>
                 {has && (
                   <div style={{ display: "flex", gap: 2 }}>
                     {items.slice(0, 3).map((dl, idx) => (
-                      <div key={idx} style={{ width: 4, height: 4, borderRadius: "50%", background: isSel ? "rgba(255,255,255,0.75)" : TYPE_COLOR[dl.taskType] }} />
+                      <div key={idx} style={{ width: 4, height: 4, borderRadius: "50%", background: isSel ? "rgba(255,255,255,0.8)" : TYPE_COLOR[dl.taskType] }} />
                     ))}
                   </div>
                 )}
@@ -847,20 +867,20 @@ function CalendarScreen({ deadlines, onDeadline }: { deadlines: Deadline[]; onDe
       </div>
 
       {/* Legend */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14, paddingLeft: 2 }}>
         {(Object.keys(TYPE_COLOR) as TaskType[]).map((t) => (
-          <div key={t} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div key={t} style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: TYPE_COLOR[t] }} />
-            <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: "rgba(60,90,160,0.55)" }}>{t}</span>
+            <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: isDark ? "#b5c2d9" : "rgba(60,90,160,0.55)" }}>{t}</span>
           </div>
         ))}
       </div>
 
       {/* Selected date */}
-      <SectionHeader title={`${formatDate(sel)} · ${selDeadlines.length} deadline${selDeadlines.length !== 1 ? "s" : ""}`} />
+      <SectionHeader title={`${formatDate(sel)} · ${selDeadlines.length} deadline${selDeadlines.length !== 1 ? "s" : ""}`} theme={theme} />
       {selDeadlines.length === 0
-        ? <EmptyState emoji="📅" title="Nothing Scheduled" body="No deadlines on this date" />
-        : selDeadlines.map((d) => <DeadlineCard key={d.id} d={d} onPress={() => onDeadline(d)} />)
+        ? <EmptyState emoji="📅" title="Nothing Scheduled" body="No deadlines on this date" theme={theme} />
+        : selDeadlines.map((d) => <DeadlineCard key={d.id} d={d} onPress={() => onDeadline(d)} theme={theme} />)
       }
     </div>
   );
@@ -868,7 +888,8 @@ function CalendarScreen({ deadlines, onDeadline }: { deadlines: Deadline[]; onDe
 
 // ─── SCREEN: Notifications ────────────────────────────────────────────────────
 
-function NotificationsScreen({ deadlines, onDeadline }: { deadlines: Deadline[]; onDeadline: (d: Deadline) => void }) {
+function NotificationsScreen({ deadlines, onDeadline, theme }: { deadlines: Deadline[]; onDeadline: (d: Deadline) => void; theme: ThemeMode }) {
+  const isDark = theme === "Dark";
   const todayItems = deadlines.filter((d) => !d.completed && isToday(d.dueDate));
   const tomorrowStr = offsetDate(1);
   const tomorrowItems = deadlines.filter((d) => !d.completed && d.dueDate === tomorrowStr);
@@ -892,7 +913,7 @@ function NotificationsScreen({ deadlines, onDeadline }: { deadlines: Deadline[];
     {
       label: "Earlier",
       items: [
-        { emoji: "🎯", title: "StudySync Tip", body: "Set reminders 24 hours before big exams for better preparation time.", unread: false, time: "3 days ago" },
+        { emoji: "🎯", title: "DueDash Tip", body: "Set reminders 24 hours before big exams for better preparation time.", unread: false, time: "3 days ago" },
         { emoji: "📚", title: "Semester Reminder", body: "Don't forget to add all your upcoming deadlines for the semester.", unread: false, time: "5 days ago" },
       ],
     },
@@ -901,23 +922,23 @@ function NotificationsScreen({ deadlines, onDeadline }: { deadlines: Deadline[];
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 8px" }} className="anim-slide">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <h2 style={S.h2}>Notifications</h2>
-        <button style={{ ...S.iconBtn, ...S.glass, background: "rgba(255,255,255,0.4)" }}>{Ico.settings()}</button>
+        <h2 style={{ ...S.h2, color: isDark ? "#f8fafc" : undefined }}>Notifications</h2>
+        <button style={{ ...S.iconBtn, ...S.glass, background: isDark ? "rgba(15,23,42,0.72)" : "rgba(255,255,255,0.4)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>{Ico.settings()}</button>
       </div>
 
       {groups.map((grp) => grp.items.length > 0 && (
         <div key={grp.label} style={{ marginBottom: 20 }}>
-          <p style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 700, color: "rgba(60,90,160,0.5)", letterSpacing: 1, margin: "0 0 8px", textTransform: "uppercase" }}>{grp.label}</p>
+          <p style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 700, color: isDark ? "#9db0ca" : "rgba(60,90,160,0.5)", letterSpacing: 1, margin: "0 0 8px", textTransform: "uppercase" }}>{grp.label}</p>
           {grp.items.map((item, i) => (
             <button key={i} onClick={item.deadline ? () => onDeadline(item.deadline!) : undefined} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: item.deadline ? "pointer" : "default", marginBottom: 8, display: "block" }}>
-              <div style={{ ...S.glassCard, borderRadius: 20, padding: "13px 14px", display: "flex", gap: 12, alignItems: "flex-start" }}>
+              <div style={{ ...S.glassCard, borderRadius: 20, padding: "13px 14px", display: "flex", gap: 12, alignItems: "flex-start", background: isDark ? "rgba(15,23,42,0.7)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
                 <div style={{ width: 40, height: 40, borderRadius: 14, background: item.unread ? "rgba(59,130,246,0.14)" : "rgba(100,140,220,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, flexShrink: 0 }}>{item.emoji}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <p style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: "rgba(18,36,80,0.9)", margin: 0, flex: 1 }}>{item.title}</p>
+                    <p style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: isDark ? "#e2e8f0" : "rgba(18,36,80,0.9)", margin: 0, flex: 1 }}>{item.title}</p>
                     {item.unread && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", flexShrink: 0, marginTop: 4 }} />}
                   </div>
-                  <p style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(60,90,160,0.6)", margin: "3px 0 5px", lineHeight: 1.45 }}>{item.body}</p>
+                  <p style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: isDark ? "#b5c2d9" : "rgba(60,90,160,0.6)", margin: "3px 0 5px", lineHeight: 1.45 }}>{item.body}</p>
                   <span style={{ fontFamily: "Inter,sans-serif", fontSize: 10, color: "rgba(100,140,200,0.48)", letterSpacing: 0.2 }}>{item.time}</span>
                 </div>
               </div>
@@ -931,30 +952,47 @@ function NotificationsScreen({ deadlines, onDeadline }: { deadlines: Deadline[];
 
 // ─── SCREEN: Profile ──────────────────────────────────────────────────────────
 
-function ProfileScreen({ deadlines, onLogout }: { deadlines: Deadline[]; onLogout: () => void }) {
+function ProfileScreen({ deadlines, onLogout, theme, onThemeChange }: { deadlines: Deadline[]; onLogout: () => void; theme: ThemeMode; onThemeChange: (v: ThemeMode) => void }) {
+  const isDark = theme === "Dark";
+  const darkText = isDark ? "#e2e8f0" : "rgba(18,36,80,0.88)";
+  const darkSub = isDark ? "#a5b4cf" : "rgba(60,90,160,0.5)";
+  const darkLabel = isDark ? "#dfeaf9" : "rgba(18,36,80,0.9)";
+  const darkPanel = isDark ? "rgba(15,23,42,0.68)" : "rgba(255,255,255,0.38)";
+  const darkChip = isDark ? "rgba(96,165,250,0.12)" : "rgba(59,130,246,0.09)";
+  const darkCardBorder = isDark ? "rgba(148,163,184,0.18)" : "rgba(100,140,220,0.1)";
+  const darkInput = isDark ? "rgba(30,41,59,0.9)" : "rgba(255,255,255,0.4)";
+
   const completed = deadlines.filter((d) => d.completed).length;
+  const [openPanel, setOpenPanel] = useState<string | null>(null);
+  const [reminderDays, setReminderDays] = useState(1);
+  const [reminderHours, setReminderHours] = useState(1);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [spotifyConnected, setSpotifyConnected] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const spotifyPlaylistUrl = "https://open.spotify.com/playlist/37i9dQZF1DXbvIwPsyNnKl?si=HyLjfw5PTz6jKpMIkNUacQ";
+
   const settings = [
-    { icon: "🔔", label: "Reminder Settings", sub: "1 day & 1 hour before due" },
-    { icon: "📲", label: "Notification Settings", sub: "All notifications enabled" },
-    { icon: "🎨", label: "Appearance", sub: "Light · Liquid Glass theme" },
-    { icon: "⚙️", label: "Account Settings", sub: "Privacy, security & data" },
+    { key: "reminder", icon: "🔔", label: "Reminder Settings", sub: `${reminderDays} day${reminderDays !== 1 ? "s" : ""} & ${reminderHours} hour${reminderHours !== 1 ? "s" : ""} before due` },
+    { key: "notification", icon: "📲", label: "Notification Settings", sub: notificationsEnabled ? "All notifications enabled" : "Notifications muted" },
+    { key: "appearance", icon: "🎨", label: "Appearance", sub: `${theme} · Liquid Glass theme` },
+    { key: "music", icon: "🎵", label: "Study Music", sub: spotifyConnected ? "Spotify connected • Focus mix" : "Connect Spotify to study with music" },
   ];
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 8px" }} className="anim-slide">
-      <h2 style={{ ...S.h2, marginBottom: 18 }}>Profile</h2>
+      <h2 style={{ ...S.h2, marginBottom: 18, color: isDark ? "#f8fafc" : "rgba(18,36,80,0.95)" }}>Profile</h2>
 
       {/* Avatar */}
-      <div style={{ ...S.glassCard, borderRadius: 28, padding: "24px 20px 20px", marginBottom: 14, textAlign: "center" }}>
+      <div style={{ ...S.glassCard, borderRadius: 28, padding: "24px 20px 20px", marginBottom: 14, textAlign: "center", background: isDark ? "rgba(15,23,42,0.7)" : "rgba(255,255,255,0.38)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(255,255,255,0.55)", boxShadow: isDark ? "0 8px 24px rgba(2,6,23,0.24), inset 0 1px 0 rgba(148,163,184,0.12)" : "0 4px 24px rgba(80,120,200,0.1), inset 0 1px 0 rgba(255,255,255,0.7)" }}>
         <div style={{ width: 82, height: 82, borderRadius: 28, background: "linear-gradient(135deg,#3b82f6,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 32, color: "#fff", boxShadow: "0 8px 28px rgba(59,130,246,0.32)" }}>T</div>
-        <h3 style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 20, color: "rgba(18,36,80,0.95)", margin: "0 0 3px" }}>Timothy</h3>
-        <p style={{ ...S.caption, margin: "0 0 16px" }}>Student ID: 2024-CS-00142</p>
+        <h3 style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 20, color: isDark ? "#f8fafc" : "rgba(18,36,80,0.95)", margin: "0 0 3px" }}>Timothy</h3>
+        <p style={{ ...S.caption, margin: "0 0 16px", color: isDark ? "#b5c2d9" : "rgba(60,90,160,0.55)" }}>Student ID: 2024-CS-00142</p>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
           {[{ label: "Program", value: "BS Computer Science" }, { label: "Year Level", value: "3rd Year" }].map((it) => (
-            <div key={it.label} style={{ ...S.glass, borderRadius: 16, padding: "11px 13px", textAlign: "left" }}>
-              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 700, color: "rgba(60,90,160,0.5)", letterSpacing: 0.6, margin: "0 0 3px", textTransform: "uppercase" }}>{it.label}</p>
-              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: "rgba(18,36,80,0.88)", margin: 0 }}>{it.value}</p>
+            <div key={it.label} style={{ ...S.glass, borderRadius: 16, padding: "11px 13px", textAlign: "left", background: isDark ? "rgba(30,41,59,0.88)" : "rgba(255,255,255,0.26)", border: isDark ? "1px solid rgba(148,163,184,0.16)" : "1px solid rgba(255,255,255,0.42)" }}>
+              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 700, color: isDark ? "#9db0ca" : "rgba(60,90,160,0.5)", letterSpacing: 0.6, margin: "0 0 3px", textTransform: "uppercase" }}>{it.label}</p>
+              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: isDark ? "#e2e8f0" : "rgba(18,36,80,0.88)", margin: 0 }}>{it.value}</p>
             </div>
           ))}
         </div>
@@ -966,26 +1004,118 @@ function ProfileScreen({ deadlines, onLogout }: { deadlines: Deadline[]; onLogou
             { val: completed, label: "Done" },
             { val: deadlines.filter((d) => !d.completed && isThisWeek(d.dueDate)).length, label: "This Week" },
           ].map((st) => (
-            <div key={st.label} style={{ background: "rgba(59,130,246,0.08)", borderRadius: 14, padding: "10px 8px" }}>
-              <p style={{ fontFamily: "Poppins,sans-serif", fontWeight: 800, fontSize: 20, color: "#3b82f6", margin: 0 }}>{st.val}</p>
-              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 600, color: "rgba(60,90,160,0.55)", margin: "2px 0 0" }}>{st.label}</p>
+            <div key={st.label} style={{ background: isDark ? "rgba(96,165,250,0.12)" : "rgba(59,130,246,0.08)", borderRadius: 14, padding: "10px 8px" }}>
+              <p style={{ fontFamily: "Poppins,sans-serif", fontWeight: 800, fontSize: 20, color: "#7bb5ff", margin: 0 }}>{st.val}</p>
+              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 600, color: isDark ? "#cbd5e1" : "rgba(60,90,160,0.55)", margin: "2px 0 0" }}>{st.label}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Settings */}
-      <div style={{ ...S.glassCard, borderRadius: 24, padding: "4px 16px", marginBottom: 14 }}>
-        {settings.map((s, i) => (
-          <button key={s.label} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "13px 0", background: "none", border: "none", borderBottom: i < settings.length - 1 ? "1px solid rgba(100,140,220,0.1)" : "none", cursor: "pointer", textAlign: "left", minHeight: 44 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 13, background: "rgba(59,130,246,0.09)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{s.icon}</div>
-            <div style={{ flex: 1, textAlign: "left" }}>
-              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, fontWeight: 600, color: "rgba(18,36,80,0.88)", margin: 0 }}>{s.label}</p>
-              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: "rgba(60,90,160,0.5)", margin: "1px 0 0" }}>{s.sub}</p>
+      <div style={{ ...S.glassCard, borderRadius: 24, padding: "4px 16px", marginBottom: 14, background: isDark ? "rgba(15,23,42,0.72)" : "rgba(255,255,255,0.38)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(255,255,255,0.55)" }}>
+        {settings.map((s, i) => {
+          const isOpen = openPanel === s.key;
+          return (
+            <div key={s.key}>
+              <button onClick={() => setOpenPanel(isOpen ? null : s.key)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "13px 0", background: "none", border: "none", borderBottom: i < settings.length - 1 ? `1px solid ${darkCardBorder}` : "none", cursor: "pointer", textAlign: "left", minHeight: 44 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 13, background: isDark ? "rgba(96,165,250,0.15)" : "rgba(59,130,246,0.09)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{s.icon}</div>
+                <div style={{ flex: 1, textAlign: "left" }}>
+                  <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, fontWeight: 600, color: isDark ? "#e2e8f0" : "rgba(18,36,80,0.88)", margin: 0 }}>{s.label}</p>
+                  <p style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: isDark ? "#aebed3" : "rgba(60,90,160,0.5)", margin: "1px 0 0" }}>{s.sub}</p>
+                </div>
+                {Ico.chevRight(isDark ? "rgba(191,219,254,0.8)" : "rgba(100,130,190,0.45)")}
+              </button>
+
+              {isOpen && (
+                <div style={{ background: isDark ? "rgba(30,41,59,0.78)" : "rgba(59,130,246,0.04)", borderRadius: 16, padding: 12, margin: "0 0 10px", border: `1px solid ${isDark ? "rgba(148,163,184,0.15)" : "rgba(100,140,220,0.12)"}` }}>
+                  {s.key === "reminder" && (
+                    <div style={{ display: "grid", gap: 10 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ ...S.caption, fontWeight: 600 }}>Days before</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <button onClick={() => setReminderDays((v) => Math.max(0, v - 1))} style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: "rgba(59,130,246,0.12)", color: "#3b82f6", fontWeight: 700, cursor: "pointer" }}>−</button>
+                          <span style={{ minWidth: 22, textAlign: "center", fontFamily: "Inter,sans-serif", fontWeight: 700, color: "rgba(18,36,80,0.9)" }}>{reminderDays}</span>
+                          <button onClick={() => setReminderDays((v) => v + 1)} style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: "rgba(59,130,246,0.12)", color: "#3b82f6", fontWeight: 700, cursor: "pointer" }}>+</button>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ ...S.caption, fontWeight: 600 }}>Hours before</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <button onClick={() => setReminderHours((v) => Math.max(0, v - 1))} style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: "rgba(59,130,246,0.12)", color: "#3b82f6", fontWeight: 700, cursor: "pointer" }}>−</button>
+                          <span style={{ minWidth: 22, textAlign: "center", fontFamily: "Inter,sans-serif", fontWeight: 700, color: "rgba(18,36,80,0.9)" }}>{reminderHours}</span>
+                          <button onClick={() => setReminderHours((v) => v + 1)} style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: "rgba(59,130,246,0.12)", color: "#3b82f6", fontWeight: 700, cursor: "pointer" }}>+</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {s.key === "notification" && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                      <span style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: "rgba(18,36,80,0.9)" }}>{notificationsEnabled ? "Enabled" : "Muted"}</span>
+                      <button onClick={() => setNotificationsEnabled((v) => !v)} style={{ position: "relative", width: 48, height: 28, borderRadius: 999, border: "none", background: notificationsEnabled ? "#3b82f6" : "rgba(100,140,220,0.18)", cursor: "pointer", transition: "all 0.2s ease" }}>
+                        <span style={{ position: "absolute", top: 4, left: notificationsEnabled ? 26 : 4, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "all 0.2s ease", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }} />
+                      </button>
+                    </div>
+                  )}
+
+                  {s.key === "appearance" && (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {(["Light", "Dark"] as const).map((mode) => (
+                        <button key={mode} onClick={() => onThemeChange(mode)} style={{ flex: 1, padding: "9px 10px", borderRadius: 12, border: "none", background: theme === mode ? "linear-gradient(135deg,#3b82f6,#6366f1)" : "rgba(255,255,255,0.4)", color: theme === mode ? "#fff" : "rgba(60,90,160,0.7)", fontFamily: "Inter,sans-serif", fontWeight: 700, cursor: "pointer" }}>
+                          {mode}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {s.key === "music" && (
+                    <div style={{ display: "grid", gap: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                        <span style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: "rgba(18,36,80,0.9)" }}>Spotify</span>
+                        <button onClick={() => setSpotifyConnected((v) => !v)} style={{ ...S.ghostBtn, padding: "8px 12px", width: "auto", borderRadius: 12, fontSize: 12, background: spotifyConnected ? "rgba(34,197,94,0.12)" : "rgba(100,140,220,0.08)", color: spotifyConnected ? "#16a34a" : "rgba(60,90,160,0.7)", borderColor: spotifyConnected ? "rgba(34,197,94,0.28)" : "rgba(100,140,220,0.18)" }}>{spotifyConnected ? "Connected" : "Connect"}</button>
+                      </div>
+
+                      {spotifyConnected && (
+                        <div style={{ borderRadius: 18, overflow: "hidden", background: "linear-gradient(135deg,#1db954,#0f172a 48%, #111827)", boxShadow: "0 12px 26px rgba(29,185,84,0.22)" }}>
+                          <iframe
+                            title="Spotify playlist"
+                            src="https://open.spotify.com/embed/playlist/37i9dQZF1DXbvIwPsyNnKl?si=HyLjfw5PTz6jKpMIkNUacQ"
+                            width="100%"
+                            height="152"
+                            frameBorder="0"
+                            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                            loading="lazy"
+                            style={{ display: "block", border: 0 }}
+                          />
+                          <div style={{ padding: "10px 12px 12px" }}>
+                            <button
+                              type="button"
+                              onClick={() => window.open(spotifyPlaylistUrl, "_blank", "noopener,noreferrer")}
+                              style={{
+                                width: "100%",
+                                border: "none",
+                                borderRadius: 12,
+                                padding: "10px 12px",
+                                background: "rgba(255,255,255,0.12)",
+                                color: "#fff",
+                                fontFamily: "Inter,sans-serif",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                            >
+                              Open in Spotify
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            {Ico.chevRight()}
-          </button>
-        ))}
+          );
+        })}
       </div>
 
       <button onClick={onLogout} style={{ ...S.ghostBtn, color: "#ef4444", borderColor: "rgba(239,68,68,0.22)", background: "rgba(239,68,68,0.06)", marginBottom: 8 }}>
@@ -1004,6 +1134,7 @@ export default function App() {
   const [deadlines, setDeadlines] = useState<Deadline[]>(INITIAL_DEADLINES);
   const [activeDeadline, setActiveDeadline] = useState<Deadline | null>(null);
   const [activeNav, setActiveNav] = useState<Screen>("dashboard");
+  const [theme, setTheme] = useState<ThemeMode>("Light");
   const [animKey, setAnimKey] = useState(0);
   const history = useRef<Screen[]>(["login"]);
 
@@ -1070,7 +1201,7 @@ export default function App() {
   const showNav = NAV_SCREENS.includes(screen);
 
   return (
-    <PhoneFrame>
+    <PhoneFrame theme={theme}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         .anim-fade { animation: fadeIn 0.28s ease forwards; }
@@ -1086,22 +1217,22 @@ export default function App() {
         * { -webkit-tap-highlight-color: transparent; }
         ::-webkit-scrollbar { display:none; }
       `}</style>
-      <StatusBar />
+      <StatusBar theme={theme} />
       <div key={animKey} style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
-        {screen === "login" && <LoginScreen onLogin={() => { history.current = ["dashboard"]; setScreen("dashboard"); setActiveNav("dashboard"); setAnimKey(k => k + 1); }} />}
-        {screen === "dashboard" && <DashboardScreen deadlines={deadlines} onNav={navigate} onDeadline={openDeadline} onAdd={() => navigate("add-deadline")} />}
-        {screen === "deadlines" && <DeadlinesScreen deadlines={deadlines} onDeadline={openDeadline} onAdd={() => navigate("add-deadline")} />}
-        {screen === "add-deadline" && <DeadlineFormScreen title="Add Deadline" onSave={addDeadline} onBack={goBack} />}
-        {screen === "edit-deadline" && currentDeadline && <DeadlineFormScreen title="Edit Deadline" initial={currentDeadline} onSave={editDeadline} onBack={goBack} />}
+        {screen === "login" && <LoginScreen theme={theme} onLogin={() => { history.current = ["dashboard"]; setScreen("dashboard"); setActiveNav("dashboard"); setAnimKey(k => k + 1); }} />}
+        {screen === "dashboard" && <DashboardScreen deadlines={deadlines} onNav={navigate} onDeadline={openDeadline} onAdd={() => navigate("add-deadline")} theme={theme} />}
+        {screen === "deadlines" && <DeadlinesScreen deadlines={deadlines} onDeadline={openDeadline} onAdd={() => navigate("add-deadline")} theme={theme} />}
+        {screen === "add-deadline" && <DeadlineFormScreen title="Add Deadline" onSave={addDeadline} onBack={goBack} theme={theme} />}
+        {screen === "edit-deadline" && currentDeadline && <DeadlineFormScreen title="Edit Deadline" initial={currentDeadline} onSave={editDeadline} onBack={goBack} theme={theme} />}
         {screen === "deadline-detail" && currentDeadline && (
-          <DeadlineDetailScreen d={currentDeadline} onBack={goBack} onComplete={completeDeadline} onDelete={deleteDeadline} onEdit={() => navigate("edit-deadline")} />
+          <DeadlineDetailScreen d={currentDeadline} onBack={goBack} onComplete={completeDeadline} onDelete={deleteDeadline} onEdit={() => navigate("edit-deadline")} theme={theme} />
         )}
-        {screen === "completion" && currentDeadline && <CompletionScreen d={currentDeadline} deadlines={deadlines} onDashboard={() => { history.current = ["dashboard"]; setScreen("dashboard"); setActiveNav("dashboard"); setAnimKey(k => k + 1); }} />}
-        {screen === "calendar" && <CalendarScreen deadlines={deadlines} onDeadline={openDeadline} />}
-        {screen === "notifications" && <NotificationsScreen deadlines={deadlines} onDeadline={openDeadline} />}
-        {screen === "profile" && <ProfileScreen deadlines={deadlines} onLogout={() => { history.current = ["login"]; setScreen("login"); setAnimKey(k => k + 1); }} />}
+        {screen === "completion" && currentDeadline && <CompletionScreen d={currentDeadline} deadlines={deadlines} onDashboard={() => { history.current = ["dashboard"]; setScreen("dashboard"); setActiveNav("dashboard"); setAnimKey(k => k + 1); }} theme={theme} />}
+        {screen === "calendar" && <CalendarScreen deadlines={deadlines} onDeadline={openDeadline} theme={theme} />}
+        {screen === "notifications" && <NotificationsScreen deadlines={deadlines} onDeadline={openDeadline} theme={theme} />}
+        {screen === "profile" && <ProfileScreen deadlines={deadlines} onLogout={() => { history.current = ["login"]; setScreen("login"); setAnimKey(k => k + 1); }} theme={theme} onThemeChange={setTheme} />}
       </div>
-      {showNav && <BottomNav active={activeNav} onNav={navigate} />}
+      {showNav && <BottomNav active={activeNav} onNav={navigate} theme={theme} />}
     </PhoneFrame>
   );
 }
