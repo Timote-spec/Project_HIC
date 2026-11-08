@@ -388,7 +388,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           <div style={{ flex: 1, height: 1, background: "rgba(100,140,220,0.18)" }} />
         </div>
 
-        <button onClick={onLogin} style={S.ghostBtn}>Continue as Demo Student</button>
+        <button onClick={onLogin} style={S.ghostBtn}>Continue as Timothy</button>
       </div>
 
       <p style={{ textAlign: "center", ...S.caption, marginTop: 20, fontSize: 12 }}>
@@ -422,7 +422,7 @@ function DashboardScreen({ deadlines, onNav, onDeadline, onAdd }: { deadlines: D
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div>
           <p style={{ ...S.caption, margin: 0, fontSize: 13 }}>{greeting},</p>
-          <h2 style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 22, color: "rgba(18,36,80,0.95)", margin: "1px 0 0" }}>Alex Rivera 👋</h2>
+          <h2 style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 22, color: "rgba(18,36,80,0.95)", margin: "1px 0 0" }}>Timothy 👋</h2>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => onNav("notifications")} style={{ ...S.iconBtn, ...S.glass, background: "rgba(255,255,255,0.4)" }}>
@@ -641,7 +641,7 @@ function DeadlineDetailScreen({ d, onBack, onComplete, onDelete, onEdit }: { d: 
   const [delConfirm, setDelConfirm] = useState(false);
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 24px" }} className="anim-slide">
+    <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 24px", position: "relative" }} className="anim-slide">
       <BackBtn onPress={onBack} label="Deadline Details" />
 
       {/* Hero */}
@@ -715,12 +715,14 @@ function DeadlineDetailScreen({ d, onBack, onComplete, onDelete, onEdit }: { d: 
 
       {/* Delete confirmation */}
       {delConfirm && (
-        <div style={{ ...S.glassCard, borderRadius: 20, padding: "16px 18px", border: "1.5px solid rgba(239,68,68,0.25)" }}>
-          <p style={{ fontFamily: "Poppins,sans-serif", fontWeight: 600, fontSize: 14, color: "rgba(18,36,80,0.9)", margin: "0 0 12px" }}>Delete this deadline?</p>
-          <p style={{ ...S.caption, margin: "0 0 14px" }}>This action cannot be undone.</p>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => setDelConfirm(false)} style={{ flex: 1, padding: "11px", background: "rgba(100,130,200,0.1)", borderRadius: 16, border: "none", fontFamily: "Inter,sans-serif", fontWeight: 600, fontSize: 14, color: "rgba(60,90,160,0.7)", cursor: "pointer" }}>Cancel</button>
-            <button onClick={onDelete} style={{ flex: 1, padding: "11px", background: "#ef4444", borderRadius: 16, border: "none", fontFamily: "Inter,sans-serif", fontWeight: 600, fontSize: 14, color: "#fff", cursor: "pointer" }}>Delete</button>
+        <div className="anim-fade" style={{ position: "absolute", inset: 0, background: "rgba(16, 24, 40, 0.18)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 20 }}>
+          <div className="anim-scale" style={{ ...S.glassCard, width: "100%", maxWidth: 320, borderRadius: 26, padding: "18px 16px 16px", border: "1.5px solid rgba(239,68,68,0.2)", boxShadow: "0 18px 42px rgba(43, 62, 104, 0.18)" }}>
+            <p style={{ fontFamily: "Poppins,sans-serif", fontWeight: 600, fontSize: 15, color: "rgba(18,36,80,0.9)", margin: "0 0 10px", textAlign: "center" }}>Delete this deadline?</p>
+            <p style={{ ...S.caption, margin: "0 0 16px", textAlign: "center" }}>This action cannot be undone.</p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setDelConfirm(false)} style={{ flex: 1, padding: "12px 10px", background: "rgba(100,130,200,0.1)", borderRadius: 16, border: "none", fontFamily: "Inter,sans-serif", fontWeight: 600, fontSize: 14, color: "rgba(60,90,160,0.7)", cursor: "pointer", transition: "transform 0.15s ease, opacity 0.15s ease" }}>Cancel</button>
+              <button onClick={onDelete} style={{ flex: 1, padding: "12px 10px", background: "#ef4444", borderRadius: 16, border: "none", fontFamily: "Inter,sans-serif", fontWeight: 600, fontSize: 14, color: "#fff", cursor: "pointer", transition: "transform 0.15s ease, opacity 0.15s ease" }}>Delete</button>
+            </div>
           </div>
         </div>
       )}
@@ -944,8 +946,8 @@ function ProfileScreen({ deadlines, onLogout }: { deadlines: Deadline[]; onLogou
 
       {/* Avatar */}
       <div style={{ ...S.glassCard, borderRadius: 28, padding: "24px 20px 20px", marginBottom: 14, textAlign: "center" }}>
-        <div style={{ width: 82, height: 82, borderRadius: 28, background: "linear-gradient(135deg,#3b82f6,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 32, color: "#fff", boxShadow: "0 8px 28px rgba(59,130,246,0.32)" }}>A</div>
-        <h3 style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 20, color: "rgba(18,36,80,0.95)", margin: "0 0 3px" }}>Alex Rivera</h3>
+        <div style={{ width: 82, height: 82, borderRadius: 28, background: "linear-gradient(135deg,#3b82f6,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 32, color: "#fff", boxShadow: "0 8px 28px rgba(59,130,246,0.32)" }}>T</div>
+        <h3 style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 20, color: "rgba(18,36,80,0.95)", margin: "0 0 3px" }}>Timothy</h3>
         <p style={{ ...S.caption, margin: "0 0 16px" }}>Student ID: 2024-CS-00142</p>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
