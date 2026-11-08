@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import * as pdfjsLib from "pdfjs-dist/build/pdf.mjs";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -12,11 +15,14 @@ type Screen =
   | "completion"
   | "calendar"
   | "notifications"
-  | "profile";
+  | "profile"
+  | "reviewer";
 
 type Priority = "Low" | "Medium" | "High";
 type TaskType = "Assignment" | "Project" | "Quiz" | "Exam" | "Presentation" | "Other";
-type FilterType = "All" | "Today" | "This Week" | "Completed";
+type FilterType = "All" | "Today" | "This Week" | "Overdue" | "Completed";
+type ThemeMode = "Light" | "Dark" | "Ocean" | "Sunset";
+type RevisionStatus = "Not started" | "Reviewing" | "Reviewed";
 
 interface Deadline {
   id: string;
@@ -29,6 +35,22 @@ interface Deadline {
   priority: Priority;
   completed: boolean;
   completedAt?: string;
+  revision: RevisionStatus;
+  notes?: string;
+  attachmentName?: string;
+  attachmentDataUrl?: string;
+}
+
+interface ReviewQuestion {
+  question: string;
+  answer: string;
+}
+
+interface ReviewData {
+  fileName: string;
+  summary: string[];
+  keywords: string[];
+  questions: ReviewQuestion[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -56,6 +78,10 @@ function formatTime(t: string) {
   const [h, m] = t.split(":").map(Number);
   return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
 }
+function isOverdue(dateStr: string, timeStr: string) {
+  const target = new Date(`${dateStr}T${timeStr || "00:00"}:00`).getTime();
+  return target < Date.now();
+}
 function getCountdown(dueDate: string, dueTime: string) {
   const diff = new Date(`${dueDate}T${dueTime}:00`).getTime() - Date.now();
   if (diff < 0) return "Overdue";
@@ -65,17 +91,79 @@ function getCountdown(dueDate: string, dueTime: string) {
   return `Due in ${Math.floor(h / 24)}d`;
 }
 
+function buildReviewData(fileName: string, rawText: string): ReviewData {
+  const cleanText = rawText
+    .replace(/\r/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const sentences = cleanText
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 12);
+
+  const keywords = Array.from(
+    new Set(
+      cleanText
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter((word) => word.length > 4 && !["which", "there", "about", "their", "these", "would", "study", "notes", "chapter", "material"].includes(word))
+        .slice(0, 8)
+    )
+  );
+
+  const summary = sentences.length
+    ? sentences.slice(0, 4).map((sentence, index) => `${index + 1}. ${sentence.slice(0, 180)}${sentence.length > 180 ? "..." : ""}`)
+    : ["Upload your class notes or exam materials to generate a quick review summary."];
+
+  const questions = sentences.length
+    ? sentences.slice(0, 5).map((sentence, index) => {
+        const keyword = keywords[index % Math.max(keywords.length, 1)] ?? "core concept";
+        return {
+          question: `Question ${index + 1}: What is the most important idea related to ${keyword}?`,
+          answer: sentence.length > 220 ? `${sentence.slice(0, 220)}...` : sentence,
+        };
+      })
+    : [
+        {
+          question: "What are the main concepts in this file?",
+          answer: "Use the uploaded material to identify the central ideas, examples, and formulas before the exam.",
+        },
+      ];
+
+  return { fileName, summary, keywords: keywords.length ? keywords : ["key idea", "example", "formula", "review"], questions };
+}
+
+async function readPdfText(file: File): Promise<string> {
+  const bytes = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  const pages: string[] = [];
+
+  for (let i = 1; i <= pdf.numPages; i += 1) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ");
+    pages.push(text);
+  }
+
+  return pages.join("\n");
+}
+
 // ─── Sample Data ──────────────────────────────────────────────────────────────
 
 const INITIAL_DEADLINES: Deadline[] = [
-  { id: "1", taskName: "Final Project", subject: "Programming", taskType: "Project", description: "Build a full-stack web application with React and Node.js. Include authentication, database integration, and a live deployment link.", dueDate: todayStr(), dueTime: "23:59", priority: "High", completed: false },
-  { id: "2", taskName: "Assignment 3", subject: "Database Management", taskType: "Assignment", description: "Complete the ER diagram and normalization exercises up to 3NF. Include SQL queries for all CRUD operations with test data.", dueDate: todayStr(), dueTime: "17:00", priority: "High", completed: false },
-  { id: "3", taskName: "Chapter 5–7 Quiz", subject: "Mathematics", taskType: "Quiz", description: "Covers integration techniques, differential equations, and power series expansion. Review textbook examples.", dueDate: offsetDate(1), dueTime: "09:00", priority: "Medium", completed: false },
-  { id: "4", taskName: "Pendulum Lab Report", subject: "Physics", taskType: "Assignment", description: "Write up the simple pendulum experiment with data tables, graphs, error analysis, and discussion of results.", dueDate: offsetDate(3), dueTime: "23:59", priority: "Low", completed: false },
-  { id: "5", taskName: "Midterm Examination", subject: "Data Structures", taskType: "Exam", description: "Covers arrays, linked lists, trees, graphs, sorting algorithms (merge, quick, heap), and Big-O analysis. Open-note policy.", dueDate: offsetDate(5), dueTime: "10:00", priority: "High", completed: false },
-  { id: "6", taskName: "AI in Healthcare Talk", subject: "Technical Writing", taskType: "Presentation", description: "10-minute slide presentation on AI diagnostics in modern hospitals. Include a printed one-page handout for each classmate.", dueDate: offsetDate(7), dueTime: "13:00", priority: "Medium", completed: false },
-  { id: "7", taskName: "Boolean Algebra HW", subject: "Discrete Mathematics", taskType: "Assignment", description: "Logic gates and Boolean algebra problems from Chapter 3, exercises 3.1–3.5.", dueDate: offsetDate(-2), dueTime: "23:59", priority: "Medium", completed: true, completedAt: new Date(Date.now() - 172800000).toISOString() },
-  { id: "8", taskName: "Sprint Retrospective", subject: "Software Engineering", taskType: "Other", description: "Prepare retrospective notes for Agile sprint 4. Document what went well, blockers, and action items.", dueDate: offsetDate(2), dueTime: "14:00", priority: "Low", completed: false },
+  { id: "1", taskName: "Final Project", subject: "Programming", taskType: "Project", description: "Build a full-stack web application with React and Node.js. Include authentication, database integration, and a live deployment link.", dueDate: todayStr(), dueTime: "23:59", priority: "High", completed: false, revision: "Reviewing", notes: "Focus on database and auth flow. Keep deployment checklist ready.", attachmentName: "project-brief.txt" },
+  { id: "2", taskName: "Assignment 3", subject: "Database Management", taskType: "Assignment", description: "Complete the ER diagram and normalization exercises up to 3NF. Include SQL queries for all CRUD operations with test data.", dueDate: todayStr(), dueTime: "17:00", priority: "High", completed: false, revision: "Not started", notes: "Revise normalization rules before 3 pm." },
+  { id: "3", taskName: "Chapter 5–7 Quiz", subject: "Mathematics", taskType: "Quiz", description: "Covers integration techniques, differential equations, and power series expansion. Review textbook examples.", dueDate: offsetDate(1), dueTime: "09:00", priority: "Medium", completed: false, revision: "Reviewing", notes: "Practice integration methods and revisit standard forms." },
+  { id: "4", taskName: "Pendulum Lab Report", subject: "Physics", taskType: "Assignment", description: "Write up the simple pendulum experiment with data tables, graphs, error analysis, and discussion of results.", dueDate: offsetDate(3), dueTime: "23:59", priority: "Low", completed: false, revision: "Not started", notes: "Upload final experiment image when ready." },
+  { id: "5", taskName: "Midterm Examination", subject: "Data Structures", taskType: "Exam", description: "Covers arrays, linked lists, trees, graphs, sorting algorithms (merge, quick, heap), and Big-O analysis. Open-note policy.", dueDate: offsetDate(5), dueTime: "10:00", priority: "High", completed: false, revision: "Reviewing", notes: "Review trees, graph traversal, and complexity comparisons." },
+  { id: "6", taskName: "AI in Healthcare Talk", subject: "Technical Writing", taskType: "Presentation", description: "10-minute slide presentation on AI diagnostics in modern hospitals. Include a printed one-page handout for each classmate.", dueDate: offsetDate(7), dueTime: "13:00", priority: "Medium", completed: false, revision: "Not started", notes: "Prepare intro slide and healthcare case studies." },
+  { id: "7", taskName: "Boolean Algebra HW", subject: "Discrete Mathematics", taskType: "Assignment", description: "Logic gates and Boolean algebra problems from Chapter 3, exercises 3.1–3.5.", dueDate: offsetDate(-2), dueTime: "23:59", priority: "Medium", completed: true, completedAt: new Date(Date.now() - 172800000).toISOString(), revision: "Reviewed", notes: "Completed and reviewed final answers." },
+  { id: "8", taskName: "Sprint Retrospective", subject: "Software Engineering", taskType: "Other", description: "Prepare retrospective notes for Agile sprint 4. Document what went well, blockers, and action items.", dueDate: offsetDate(2), dueTime: "14:00", priority: "Low", completed: false, revision: "Not started", notes: "Summarize blockers and improvements for the sprint." },
 ];
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
@@ -84,6 +172,19 @@ const PRIORITY_COLOR: Record<Priority, string> = { High: "#ef4444", Medium: "#f9
 const PRIORITY_BG: Record<Priority, string> = { High: "rgba(239,68,68,0.13)", Medium: "rgba(249,115,22,0.13)", Low: "rgba(34,197,94,0.13)" };
 const TYPE_ICON: Record<TaskType, string> = { Assignment: "📝", Project: "🗂️", Quiz: "❓", Exam: "📋", Presentation: "🎤", Other: "📌" };
 const TYPE_COLOR: Record<TaskType, string> = { Assignment: "#3b82f6", Project: "#8b5cf6", Quiz: "#f97316", Exam: "#ef4444", Presentation: "#22c55e", Other: "#6b7280" };
+const REVISION_STYLES: Record<RevisionStatus, { bg: string; color: string }> = {
+  "Not started": { bg: "rgba(148,163,184,0.12)", color: "#64748b" },
+  Reviewing: { bg: "rgba(59,130,246,0.12)", color: "#2563eb" },
+  Reviewed: { bg: "rgba(34,197,94,0.12)", color: "#15803d" },
+};
+const THEME_PRESETS: Record<ThemeMode, { shell: string; surface: string; panel: string; strong: string; muted: string }> = {
+  Light: { shell: "linear-gradient(145deg, #b8ccec 0%, #c5daf5 30%, #cccaf0 65%, #d0c8f0 100%)", surface: "linear-gradient(150deg, #eaf4ff 0%, #ddeeff 12%, #e2e6ff 36%, #ede6ff 62%, #eaedff 82%, #dcf6ff 100%)", panel: "rgba(255,255,255,0.38)", strong: "rgba(18,36,80,0.95)", muted: "rgba(60,90,160,0.55)" },
+  Dark: { shell: "linear-gradient(145deg, #101827 0%, #1e293b 35%, #0f172a 100%)", surface: "linear-gradient(150deg, #111827 0%, #172033 18%, #0f172a 52%, #111827 100%)", panel: "rgba(15,23,42,0.72)", strong: "#f8fafc", muted: "#9db0ca" },
+  Ocean: { shell: "linear-gradient(145deg, #082f49 0%, #0f766e 35%, #0f172a 100%)", surface: "linear-gradient(150deg, #083344 0%, #0f766e 30%, #0f172a 60%, #111827 100%)", panel: "rgba(15,23,42,0.7)", strong: "#e0f2fe", muted: "#a5f3fc" },
+  Sunset: { shell: "linear-gradient(145deg, #431407 0%, #7c2d12 28%, #312e81 100%)", surface: "linear-gradient(150deg, #3f2b17 0%, #7c2d12 28%, #7c3aed 62%, #111827 100%)", panel: "rgba(33,18,42,0.7)", strong: "#fef3c7", muted: "#f9a8d4" },
+};
+const isDarkTheme = (theme: ThemeMode) => theme !== "Light";
+const STORAGE_KEYS = { deadlines: "duedash.deadlines", theme: "duedash.theme" };
 
 // ─── Shared Styles ────────────────────────────────────────────────────────────
 
@@ -127,13 +228,12 @@ const Ico = {
 
 // ─── Layout Shell ─────────────────────────────────────────────────────────────
 
-type ThemeMode = "Light" | "Dark";
-
 function PhoneFrame({ children, theme }: { children: React.ReactNode; theme: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const preset = THEME_PRESETS[theme];
+  const isDark = isDarkTheme(theme);
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: isDark ? "linear-gradient(145deg, #101827 0%, #1e293b 35%, #0f172a 100%)" : "linear-gradient(145deg, #b8ccec 0%, #c5daf5 30%, #cccaf0 65%, #d0c8f0 100%)", padding: 16, boxSizing: "border-box" }}>
-      <div style={{ width: 393, minHeight: 852, maxHeight: "calc(100vh - 32px)", borderRadius: 52, overflow: "hidden", boxShadow: isDark ? "0 48px 120px rgba(2,6,23,0.6), 0 0 0 10px rgba(148,163,184,0.08), 0 0 0 11px rgba(30,41,59,0.2)" : "0 48px 120px rgba(40,60,120,0.38), 0 0 0 10px rgba(255,255,255,0.18), 0 0 0 11px rgba(180,200,255,0.28)", position: "relative", background: isDark ? "linear-gradient(150deg, #111827 0%, #172033 18%, #0f172a 52%, #111827 100%)" : "linear-gradient(150deg, #eaf4ff 0%, #ddeeff 12%, #e2e6ff 36%, #ede6ff 62%, #eaedff 82%, #dcf6ff 100%)", display: "flex", flexDirection: "column", flex: "none" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: preset.shell, padding: 16, boxSizing: "border-box" }}>
+      <div style={{ width: 393, minHeight: 852, maxHeight: "calc(100vh - 32px)", borderRadius: 52, overflow: "hidden", boxShadow: isDark ? "0 48px 120px rgba(2,6,23,0.6), 0 0 0 10px rgba(148,163,184,0.08), 0 0 0 11px rgba(30,41,59,0.2)" : "0 48px 120px rgba(40,60,120,0.38), 0 0 0 10px rgba(255,255,255,0.18), 0 0 0 11px rgba(180,200,255,0.28)", position: "relative", background: preset.surface, display: "flex", flexDirection: "column", flex: "none" }}>
         {children}
       </div>
     </div>
@@ -149,8 +249,9 @@ function StatusBar({ theme }: { theme: ThemeMode }) {
     return () => clearInterval(t);
   }, []);
 
-  const isDark = theme === "Dark";
-  const statusColor = isDark ? "rgba(226,232,240,0.9)" : "rgba(20,45,100,0.85)";
+  const isDark = isDarkTheme(theme);
+  const preset = THEME_PRESETS[theme];
+  const statusColor = isDark ? preset.strong : "rgba(20,45,100,0.85)";
 
   return (
     <div style={{ height: 50, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px", flexShrink: 0, paddingTop: 6 }}>
@@ -179,7 +280,7 @@ function StatusBar({ theme }: { theme: ThemeMode }) {
 }
 
 function BottomNav({ active, onNav, theme }: { active: Screen; onNav: (s: Screen) => void; theme: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   const items: { id: Screen; label: string; icon: () => React.ReactNode }[] = [
     { id: "dashboard", label: "Home", icon: () => Ico.home(active === "dashboard") },
     { id: "deadlines", label: "Tasks", icon: () => Ico.tasks(active === "deadlines") },
@@ -216,7 +317,7 @@ function BackBtn({ onPress, label }: { onPress: () => void; label?: string }) {
 }
 
 function SectionHeader({ title, action, theme }: { title: string; action?: React.ReactNode; theme?: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
       <p style={{ ...S.sectionTitle, color: isDark ? "#e2e8f0" : "rgba(18,36,80,0.88)" }}>{title}</p>
@@ -246,7 +347,7 @@ function TypeBadge({ taskType }: { taskType: TaskType }) {
 // ─── Deadline Card ────────────────────────────────────────────────────────────
 
 function DeadlineCard({ d, onPress, theme }: { d: Deadline; onPress: () => void; theme?: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   const countdown = d.completed ? null : getCountdown(d.dueDate, d.dueTime);
   const countdownColor = countdown === "Overdue" ? "#ef4444" : countdown && (countdown.includes("m") && !countdown.includes("d")) ? "#f97316" : "#3b82f6";
 
@@ -278,7 +379,7 @@ function DeadlineCard({ d, onPress, theme }: { d: Deadline; onPress: () => void;
 // ─── Empty State ──────────────────────────────────────────────────────────────
 
 function EmptyState({ emoji, title, body, theme }: { emoji: string; title: string; body: string; theme?: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   return (
     <div style={{ ...S.glassCard, borderRadius: 24, padding: "36px 24px", textAlign: "center", background: isDark ? "rgba(15,23,42,0.7)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
       <div style={{ fontSize: 44, marginBottom: 12 }}>{emoji}</div>
@@ -291,7 +392,7 @@ function EmptyState({ emoji, title, body, theme }: { emoji: string; title: strin
 // ─── Form Field ───────────────────────────────────────────────────────────────
 
 function Field({ label, error, children, theme }: { label: string; error?: string; children: React.ReactNode; theme?: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   return (
     <div>
       <label style={{ ...S.label, color: isDark ? "#bfd0ea" : undefined }}>{label}</label>
@@ -302,7 +403,7 @@ function Field({ label, error, children, theme }: { label: string; error?: strin
 }
 
 function GlassInput({ value, onChange, placeholder, type = "text", theme }: { value: string; onChange: (v: string) => void; placeholder?: string; type?: string; theme?: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   return (
     <div style={{ ...S.glass, borderRadius: 17, overflow: "hidden", background: isDark ? "rgba(15,23,42,0.68)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={{ ...S.input, color: isDark ? "#e2e8f0" : undefined, "::placeholder": { color: isDark ? "rgba(148,163,184,0.7)" : "rgba(80,110,180,0.35)" } } as React.CSSProperties} />
@@ -330,7 +431,7 @@ function SkeletonCard() {
 // ─── SCREEN: Login ────────────────────────────────────────────────────────────
 
 function LoginScreen({ onLogin, theme }: { onLogin: () => void; theme: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -413,14 +514,61 @@ function LoginScreen({ onLogin, theme }: { onLogin: () => void; theme: ThemeMode
   );
 }
 
+function PomodoroCard({ theme }: { theme: ThemeMode }) {
+  const isDark = isDarkTheme(theme);
+  const [secondsLeft, setSecondsLeft] = useState(25 * 60);
+  const [isRunning, setIsRunning] = useState(false);
+  const [sessionLabel, setSessionLabel] = useState("Focus Sprint");
+
+  useEffect(() => {
+    if (!isRunning) return;
+    const timer = window.setInterval(() => {
+      setSecondsLeft((value) => {
+        if (value <= 1) {
+          setIsRunning(false);
+          setSessionLabel("Break time");
+          return 5 * 60;
+        }
+        return value - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [isRunning]);
+
+  const minutes = Math.floor(secondsLeft / 60).toString().padStart(2, "0");
+  const seconds = (secondsLeft % 60).toString().padStart(2, "0");
+
+  return (
+    <div style={{ ...S.glassCard, borderRadius: 24, padding: 16, marginBottom: 18, background: isDark ? "rgba(15,23,42,0.7)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <p style={{ ...S.caption, margin: 0, color: isDark ? "#b5c2d9" : undefined }}>Study Focus</p>
+          <p style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 17, margin: "4px 0 0", color: isDark ? "#f8fafc" : "rgba(18,36,80,0.92)" }}>{sessionLabel}</p>
+        </div>
+        <div style={{ fontFamily: "Poppins,sans-serif", fontWeight: 800, fontSize: 18, color: "#3b82f6" }}>{minutes}:{seconds}</div>
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={() => setIsRunning((v) => !v)} style={{ flex: 1, padding: "10px 12px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "#fff", fontFamily: "Inter,sans-serif", fontWeight: 700, cursor: "pointer" }}>{isRunning ? "Pause" : "Start"}</button>
+        <button onClick={() => { setIsRunning(false); setSecondsLeft(25 * 60); setSessionLabel("Focus Sprint"); }} style={{ flex: 1, padding: "10px 12px", borderRadius: 12, border: isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(100,140,220,0.2)", background: isDark ? "rgba(15,23,42,0.5)" : "rgba(255,255,255,0.2)", color: isDark ? "#e2e8f0" : "rgba(18,36,80,0.8)", fontFamily: "Inter,sans-serif", fontWeight: 700, cursor: "pointer" }}>Reset</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── SCREEN: Dashboard ────────────────────────────────────────────────────────
 
 function DashboardScreen({ deadlines, onNav, onDeadline, onAdd, theme }: { deadlines: Deadline[]; onNav: (s: Screen) => void; onDeadline: (d: Deadline) => void; onAdd: () => void; theme: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   const [loading] = useState(false);
   const todayItems = deadlines.filter((d) => !d.completed && isToday(d.dueDate));
   const weekItems = deadlines.filter((d) => !d.completed && isThisWeek(d.dueDate));
   const completedItems = deadlines.filter((d) => d.completed);
+  const streak = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    return deadlines.some((d) => d.completed && d.completedAt && new Date(d.completedAt).toDateString() === date.toDateString());
+  }).filter(Boolean).length;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
 
@@ -460,6 +608,30 @@ function DashboardScreen({ deadlines, onNav, onDeadline, onAdd, theme }: { deadl
         ))}
       </div>
 
+      <div style={{ ...S.glassCard, borderRadius: 22, padding: "12px 14px", marginBottom: 18, background: isDark ? "rgba(15,23,42,0.72)" : "rgba(255,255,255,0.15)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <p style={{ ...S.caption, margin: 0 }}>Weekly streak</p>
+            <p style={{ fontFamily: "Poppins,sans-serif", fontWeight: 800, fontSize: 17, margin: "4px 0 0", color: isDark ? "#f8fafc" : "rgba(18,36,80,0.9)" }}>{streak} day{streak === 1 ? "" : "s"}</p>
+          </div>
+          <span style={{ fontSize: 26 }}>🔥</span>
+        </div>
+      </div>
+
+      <PomodoroCard theme={theme} />
+
+      <div style={{ ...S.glassCard, borderRadius: 24, padding: 16, marginBottom: 18, background: isDark ? "rgba(15,23,42,0.72)" : "rgba(255,255,255,0.22)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div>
+            <p style={{ ...S.caption, margin: 0, color: isDark ? "#b5c2d9" : undefined }}>Quiz & Exam Review</p>
+            <p style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 18, margin: "4px 0 0", color: isDark ? "#f8fafc" : "rgba(18,36,80,0.92)" }}>Smart Reviewer</p>
+          </div>
+          <span style={{ fontSize: 28 }}>🧠</span>
+        </div>
+        <p style={{ ...S.body, margin: "0 0 12px", color: isDark ? "#cae0ff" : "rgba(40,70,140,0.75)", fontSize: 12 }}>Upload a PDF, notes, or study sheet and generate quick review questions.</p>
+        <button onClick={() => onNav("reviewer")} style={{ ...S.primaryBtn, padding: "12px 14px", fontSize: 14 }}>Open Reviewer</button>
+      </div>
+
       {/* Today's Priorities */}
       <SectionHeader title="Today's Priorities" action={<AddBtn onPress={onAdd} />} theme={theme} />
       {loading ? (
@@ -490,8 +662,111 @@ function DashboardScreen({ deadlines, onNav, onDeadline, onAdd, theme }: { deadl
 
 // ─── SCREEN: Deadlines ────────────────────────────────────────────────────────
 
+function ReviewerScreen({ onBack, theme }: { onBack: () => void; theme: ThemeMode }) {
+  const isDark = isDarkTheme(theme);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [fileName, setFileName] = useState("No file uploaded yet");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [review, setReview] = useState<ReviewData | null>(null);
+
+  const generateFromFile = async (file: File) => {
+    setLoading(true);
+    setError("");
+
+    try {
+      let text = "";
+
+      if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+        text = await readPdfText(file);
+      } else if (file.type.startsWith("text/") || [".txt", ".md", ".csv", ".json"].some((ext) => file.name.toLowerCase().endsWith(ext))) {
+        text = await file.text();
+      } else if (file.type.startsWith("image/")) {
+        setReview({
+          fileName: file.name,
+          summary: ["Image uploaded. For automatic question generation, use a PDF or text-based study file for best results."],
+          keywords: ["concept", "important idea", "example"],
+          questions: [{ question: "What is the main topic shown in this image?", answer: "Describe the main idea, core diagram, or formula in your own words." }],
+        });
+        setFileName(file.name);
+        setLoading(false);
+        return;
+      } else {
+        throw new Error("Unsupported file type. Please upload a PDF, TXT, MD, CSV, JSON, or image file.");
+      }
+
+      if (!text.trim()) {
+        throw new Error("This file did not contain readable text. Please try a different study sheet or PDF.");
+      }
+
+      const nextReview = buildReviewData(file.name, text);
+      setFileName(file.name);
+      setReview(nextReview);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "The reviewer could not process this file.";
+      setError(message);
+      setReview(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 24px" }} className="anim-slide">
+      <BackBtn onPress={onBack} label="Exam Reviewer" />
+
+      <div style={{ ...S.glassCard, borderRadius: 24, padding: 18, marginBottom: 18, background: isDark ? "rgba(15,23,42,0.72)" : "rgba(255,255,255,0.2)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
+        <p style={{ ...S.caption, margin: 0, color: isDark ? "#b5c2d9" : undefined }}>Upload your study file</p>
+        <p style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 20, margin: "6px 0 12px", color: isDark ? "#f8fafc" : "rgba(18,36,80,0.92)" }}>Auto-generate quiz review</p>
+
+        <button onClick={() => fileInputRef.current?.click()} style={{ ...S.primaryBtn, padding: "14px 16px", fontSize: 15, opacity: loading ? 0.7 : 1 }}>
+          {loading ? "Reviewing file..." : "Upload PDF or notes"}
+        </button>
+        <input ref={fileInputRef} type="file" accept=".pdf,.txt,.md,.csv,.json,image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) generateFromFile(file); }} style={{ display: "none" }} />
+
+        <p style={{ ...S.caption, margin: "12px 0 0", color: isDark ? "#a7b9d6" : "rgba(60,90,160,0.62)" }}>{fileName}</p>
+        {error && <p style={{ marginTop: 12, color: "#ef4444", fontFamily: "Inter,sans-serif", fontWeight: 600, fontSize: 12 }}>{error}</p>}
+      </div>
+
+      {review && (
+        <>
+          <div style={{ ...S.glassCard, borderRadius: 24, padding: 18, marginBottom: 18, background: isDark ? "rgba(15,23,42,0.72)" : "rgba(255,255,255,0.2)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
+            <p style={{ ...S.sectionTitle, marginBottom: 10, color: isDark ? "#e2e8f0" : "rgba(18,36,80,0.88)" }}>Quick summary</p>
+            <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 8 }}>
+              {review.summary.map((item) => (
+                <li key={item} style={{ color: isDark ? "#dfeaf9" : "rgba(18,36,80,0.82)", fontFamily: "Inter,sans-serif", fontSize: 13, lineHeight: 1.6 }}>{item}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div style={{ ...S.glassCard, borderRadius: 24, padding: 18, marginBottom: 18, background: isDark ? "rgba(15,23,42,0.72)" : "rgba(255,255,255,0.2)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
+            <p style={{ ...S.sectionTitle, marginBottom: 10, color: isDark ? "#e2e8f0" : "rgba(18,36,80,0.88)" }}>Key topics</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {review.keywords.map((item) => (
+                <span key={item} style={{ padding: "7px 10px", borderRadius: 999, background: isDark ? "rgba(96,165,250,0.14)" : "rgba(59,130,246,0.09)", color: isDark ? "#dfeaf9" : "rgba(18,36,80,0.8)", fontFamily: "Inter,sans-serif", fontSize: 12, fontWeight: 700 }}>{item}</span>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ ...S.glassCard, borderRadius: 24, padding: 18, marginBottom: 18, background: isDark ? "rgba(15,23,42,0.72)" : "rgba(255,255,255,0.2)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
+            <p style={{ ...S.sectionTitle, marginBottom: 12, color: isDark ? "#e2e8f0" : "rgba(18,36,80,0.88)" }}>Practice review</p>
+            <div style={{ display: "grid", gap: 12 }}>
+              {review.questions.map((item, index) => (
+                <div key={`${item.question}-${index}`} style={{ background: isDark ? "rgba(30,41,59,0.7)" : "rgba(255,255,255,0.28)", borderRadius: 16, padding: 12, border: isDark ? "1px solid rgba(148,163,184,0.12)" : "1px solid rgba(100,140,220,0.12)" }}>
+                  <p style={{ fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: 14, margin: "0 0 8px", color: isDark ? "#f8fafc" : "rgba(18,36,80,0.92)" }}>{item.question}</p>
+                  <p style={{ margin: 0, fontFamily: "Inter,sans-serif", fontSize: 12.5, lineHeight: 1.6, color: isDark ? "#dfeaf9" : "rgba(18,36,80,0.8)" }}>{item.answer}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function DeadlinesScreen({ deadlines, onDeadline, onAdd, theme }: { deadlines: Deadline[]; onDeadline: (d: Deadline) => void; onAdd: () => void; theme: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterType>("All");
 
@@ -554,7 +829,7 @@ interface DeadlineFormProps {
 }
 
 function DeadlineFormScreen({ initial, onSave, onBack, title, theme }: DeadlineFormProps & { theme: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   const [form, setForm] = useState({
     taskName: initial?.taskName ?? "",
     subject: initial?.subject ?? "",
@@ -563,8 +838,23 @@ function DeadlineFormScreen({ initial, onSave, onBack, title, theme }: DeadlineF
     dueDate: initial?.dueDate ?? todayStr(),
     dueTime: initial?.dueTime ?? "23:59",
     priority: (initial?.priority ?? "Medium") as Priority,
+    revision: (initial?.revision ?? "Not started") as RevisionStatus,
+    notes: initial?.notes ?? "",
+    attachmentName: initial?.attachmentName ?? "",
+    attachmentDataUrl: initial?.attachmentDataUrl ?? "",
   });
   const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
+
+  const handleAttachment = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((f) => ({ ...f, attachmentName: file.name, attachmentDataUrl: String(reader.result ?? "") }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const set = <K extends keyof typeof form>(k: K, v: typeof form[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -643,6 +933,30 @@ function DeadlineFormScreen({ initial, onSave, onBack, title, theme }: DeadlineF
           </div>
         </Field>
 
+        <Field label="Revision status" theme={theme}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {(["Not started", "Reviewing", "Reviewed"] as RevisionStatus[]).map((s) => (
+              <button key={s} onClick={() => set("revision", s)} style={{ padding: "9px 12px", borderRadius: 12, border: form.revision === s ? "none" : isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(100,140,220,0.18)", background: form.revision === s ? REVISION_STYLES[s].bg : isDark ? "rgba(15,23,42,0.5)" : "rgba(255,255,255,0.2)", color: form.revision === s ? REVISION_STYLES[s].color : isDark ? "#dfeaf9" : "rgba(60,90,160,0.72)", fontFamily: "Inter,sans-serif", fontWeight: 700, cursor: "pointer" }}>
+                {s}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        <Field label="Study notes" theme={theme}>
+          <div style={{ borderRadius: 14, background: isDark ? "rgba(12,18,31,0.28)" : "rgba(255,255,255,0.12)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(96,165,250,0.08)", overflow: "hidden" }}>
+            <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="What should you revise? Include summary points, formulas, or reminders..." rows={3} style={{ ...S.input, resize: "none", lineHeight: 1.5, paddingTop: 14, color: isDark ? "#e2e8f0" : undefined, minHeight: 66 }} />
+          </div>
+        </Field>
+
+        <Field label="Attachment (PDF / image / notes)" theme={theme}>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, borderRadius: 14, background: isDark ? "rgba(12,18,31,0.28)" : "rgba(255,255,255,0.12)", border: isDark ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(96,165,250,0.08)", padding: "12px 14px", cursor: "pointer" }}>
+            <span style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: isDark ? "#e2e8f0" : "rgba(18,36,80,0.8)" }}>{form.attachmentName || "Choose a file"}</span>
+            <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 700, color: "#3b82f6" }}>Upload</span>
+            <input type="file" accept="image/*,.pdf,.txt,.doc,.docx" onChange={handleAttachment} style={{ display: "none" }} />
+          </label>
+        </Field>
+
         <div style={{ height: 4 }} />
         <button onClick={submit} style={{ ...S.primaryBtn, borderRadius: 20, padding: "18px 16px", fontSize: 16, boxShadow: "0 10px 24px rgba(59,130,246,0.34)" }}>{initial ? "Save Changes" : "Add Deadline"}</button>
       </div>
@@ -653,7 +967,7 @@ function DeadlineFormScreen({ initial, onSave, onBack, title, theme }: DeadlineF
 // ─── SCREEN: Deadline Detail ──────────────────────────────────────────────────
 
 function DeadlineDetailScreen({ d, onBack, onComplete, onDelete, onEdit, theme }: { d: Deadline; onBack: () => void; onComplete: () => void; onDelete: () => void; onEdit: () => void; theme: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   const countdown = d.completed ? null : getCountdown(d.dueDate, d.dueTime);
   const countdownColor = countdown === "Overdue" ? "#ef4444" : "#3b82f6";
   const [delConfirm, setDelConfirm] = useState(false);
@@ -699,6 +1013,7 @@ function DeadlineDetailScreen({ d, onBack, onComplete, onDelete, onEdit, theme }
           { label: "Due Time", value: formatTime(d.dueTime) },
           { label: "Task Type", value: `${TYPE_ICON[d.taskType]} ${d.taskType}` },
           { label: "Priority", value: d.priority },
+          { label: "Revision", value: d.revision },
         ].map((row, i, arr) => (
           <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 0", borderBottom: i < arr.length - 1 ? "1px solid rgba(100,140,220,0.1)" : "none" }}>
             <span style={{ ...S.caption, fontWeight: 500, color: isDark ? "#9db0ca" : undefined }}>{row.label}</span>
@@ -712,6 +1027,26 @@ function DeadlineDetailScreen({ d, onBack, onComplete, onDelete, onEdit, theme }
         <div style={{ ...S.glassCard, borderRadius: 22, padding: "16px 18px", marginBottom: 14, background: isDark ? "rgba(15,23,42,0.68)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
           <p style={{ ...S.label, marginBottom: 8, color: isDark ? "#bfd0ea" : undefined }}>Description</p>
           <p style={{ ...S.body, margin: 0, fontSize: 14, color: isDark ? "#dfeaf9" : undefined }}>{d.description}</p>
+        </div>
+      )}
+
+      {d.notes && (
+        <div style={{ ...S.glassCard, borderRadius: 22, padding: "16px 18px", marginBottom: 14, background: isDark ? "rgba(15,23,42,0.68)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
+          <p style={{ ...S.label, marginBottom: 8, color: isDark ? "#bfd0ea" : undefined }}>Study notes</p>
+          <p style={{ ...S.body, margin: 0, fontSize: 14, color: isDark ? "#dfeaf9" : undefined }}>{d.notes}</p>
+        </div>
+      )}
+
+      {d.attachmentName && d.attachmentDataUrl && (
+        <div style={{ ...S.glassCard, borderRadius: 22, padding: "16px 18px", marginBottom: 14, background: isDark ? "rgba(15,23,42,0.68)" : undefined, border: isDark ? "1px solid rgba(148,163,184,0.18)" : undefined }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <p style={{ ...S.label, margin: 0, color: isDark ? "#bfd0ea" : undefined }}>Attachment</p>
+            <a href={d.attachmentDataUrl} target="_blank" rel="noreferrer" style={{ fontFamily: "Inter,sans-serif", fontSize: 12, fontWeight: 700, color: "#3b82f6", textDecoration: "none" }}>Open</a>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 14, background: isDark ? "rgba(30,41,59,0.8)" : "rgba(59,130,246,0.04)" }}>
+            <span style={{ fontSize: 20 }}>📎</span>
+            <span style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: isDark ? "#e2e8f0" : "rgba(18,36,80,0.8)" }}>{d.attachmentName}</span>
+          </div>
         </div>
       )}
 
@@ -751,7 +1086,7 @@ function DeadlineDetailScreen({ d, onBack, onComplete, onDelete, onEdit, theme }
 // ─── SCREEN: Completion ───────────────────────────────────────────────────────
 
 function CompletionScreen({ d, deadlines, onDashboard, theme }: { d: Deadline; deadlines: Deadline[]; onDashboard: () => void; theme: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   const completedToday = deadlines.filter((x) => x.completed && x.completedAt && isToday(x.completedAt.split("T")[0])).length;
   const remainingWeek = deadlines.filter((x) => !x.completed && isThisWeek(x.dueDate)).length;
   const weekTotal = deadlines.filter((x) => isThisWeek(x.dueDate)).length;
@@ -805,7 +1140,7 @@ function CompletionScreen({ d, deadlines, onDashboard, theme }: { d: Deadline; d
 // ─── SCREEN: Calendar ─────────────────────────────────────────────────────────
 
 function CalendarScreen({ deadlines, onDeadline, theme }: { deadlines: Deadline[]; onDeadline: (d: Deadline) => void; theme: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   const [sel, setSel] = useState(todayStr());
   const [viewMonth, setViewMonth] = useState(new Date());
   const yr = viewMonth.getFullYear(), mo = viewMonth.getMonth();
@@ -889,7 +1224,7 @@ function CalendarScreen({ deadlines, onDeadline, theme }: { deadlines: Deadline[
 // ─── SCREEN: Notifications ────────────────────────────────────────────────────
 
 function NotificationsScreen({ deadlines, onDeadline, theme }: { deadlines: Deadline[]; onDeadline: (d: Deadline) => void; theme: ThemeMode }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   const todayItems = deadlines.filter((d) => !d.completed && isToday(d.dueDate));
   const tomorrowStr = offsetDate(1);
   const tomorrowItems = deadlines.filter((d) => !d.completed && d.dueDate === tomorrowStr);
@@ -953,7 +1288,7 @@ function NotificationsScreen({ deadlines, onDeadline, theme }: { deadlines: Dead
 // ─── SCREEN: Profile ──────────────────────────────────────────────────────────
 
 function ProfileScreen({ deadlines, onLogout, theme, onThemeChange }: { deadlines: Deadline[]; onLogout: () => void; theme: ThemeMode; onThemeChange: (v: ThemeMode) => void }) {
-  const isDark = theme === "Dark";
+  const isDark = isDarkTheme(theme);
   const darkText = isDark ? "#e2e8f0" : "rgba(18,36,80,0.88)";
   const darkSub = isDark ? "#a5b4cf" : "rgba(60,90,160,0.5)";
   const darkLabel = isDark ? "#dfeaf9" : "rgba(18,36,80,0.9)";
@@ -967,15 +1302,56 @@ function ProfileScreen({ deadlines, onLogout, theme, onThemeChange }: { deadline
   const [reminderDays, setReminderDays] = useState(1);
   const [reminderHours, setReminderHours] = useState(1);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [spotifyConnected, setSpotifyConnected] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const spotifyPlaylistUrl = "https://open.spotify.com/playlist/37i9dQZF1DXbvIwPsyNnKl?si=HyLjfw5PTz6jKpMIkNUacQ";
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const exportCsv = () => {
+    const rows = [
+      ["taskName", "subject", "taskType", "priority", "dueDate", "dueTime", "status"],
+      ...deadlines.map((d) => [d.taskName, d.subject, d.taskType, d.priority, d.dueDate, d.dueTime, d.completed ? "Completed" : "Open"]),
+    ];
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "duedash-export.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const backupJson = () => {
+    const payload = JSON.stringify({ exportedAt: new Date().toISOString(), deadlines }, null, 2);
+    const blob = new Blob([payload], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "duedash-backup.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const restoreJson = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || "{}"));
+        if (Array.isArray(parsed.deadlines)) {
+          localStorage.setItem(STORAGE_KEYS.deadlines, JSON.stringify(parsed.deadlines));
+          window.location.reload();
+        }
+      } catch {
+        console.warn("Could not restore backup");
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const settings = [
     { key: "reminder", icon: "🔔", label: "Reminder Settings", sub: `${reminderDays} day${reminderDays !== 1 ? "s" : ""} & ${reminderHours} hour${reminderHours !== 1 ? "s" : ""} before due` },
     { key: "notification", icon: "📲", label: "Notification Settings", sub: notificationsEnabled ? "All notifications enabled" : "Notifications muted" },
     { key: "appearance", icon: "🎨", label: "Appearance", sub: `${theme} · Liquid Glass theme` },
-    { key: "music", icon: "🎵", label: "Study Music", sub: spotifyConnected ? "Spotify connected • Focus mix" : "Connect Spotify to study with music" },
   ];
 
   return (
@@ -1060,57 +1436,15 @@ function ProfileScreen({ deadlines, onLogout, theme, onThemeChange }: { deadline
                   )}
 
                   {s.key === "appearance" && (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      {(["Light", "Dark"] as const).map((mode) => (
-                        <button key={mode} onClick={() => onThemeChange(mode)} style={{ flex: 1, padding: "9px 10px", borderRadius: 12, border: "none", background: theme === mode ? "linear-gradient(135deg,#3b82f6,#6366f1)" : "rgba(255,255,255,0.4)", color: theme === mode ? "#fff" : "rgba(60,90,160,0.7)", fontFamily: "Inter,sans-serif", fontWeight: 700, cursor: "pointer" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                      {(["Light", "Dark", "Ocean", "Sunset"] as ThemeMode[]).map((mode) => (
+                        <button key={mode} onClick={() => onThemeChange(mode)} style={{ padding: "9px 10px", borderRadius: 12, border: "none", background: theme === mode ? "linear-gradient(135deg,#3b82f6,#6366f1)" : "rgba(255,255,255,0.4)", color: theme === mode ? "#fff" : "rgba(60,90,160,0.7)", fontFamily: "Inter,sans-serif", fontWeight: 700, cursor: "pointer" }}>
                           {mode}
                         </button>
                       ))}
                     </div>
                   )}
 
-                  {s.key === "music" && (
-                    <div style={{ display: "grid", gap: 12 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                        <span style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: "rgba(18,36,80,0.9)" }}>Spotify</span>
-                        <button onClick={() => setSpotifyConnected((v) => !v)} style={{ ...S.ghostBtn, padding: "8px 12px", width: "auto", borderRadius: 12, fontSize: 12, background: spotifyConnected ? "rgba(34,197,94,0.12)" : "rgba(100,140,220,0.08)", color: spotifyConnected ? "#16a34a" : "rgba(60,90,160,0.7)", borderColor: spotifyConnected ? "rgba(34,197,94,0.28)" : "rgba(100,140,220,0.18)" }}>{spotifyConnected ? "Connected" : "Connect"}</button>
-                      </div>
-
-                      {spotifyConnected && (
-                        <div style={{ borderRadius: 18, overflow: "hidden", background: "linear-gradient(135deg,#1db954,#0f172a 48%, #111827)", boxShadow: "0 12px 26px rgba(29,185,84,0.22)" }}>
-                          <iframe
-                            title="Spotify playlist"
-                            src="https://open.spotify.com/embed/playlist/37i9dQZF1DXbvIwPsyNnKl?si=HyLjfw5PTz6jKpMIkNUacQ"
-                            width="100%"
-                            height="152"
-                            frameBorder="0"
-                            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                            loading="lazy"
-                            style={{ display: "block", border: 0 }}
-                          />
-                          <div style={{ padding: "10px 12px 12px" }}>
-                            <button
-                              type="button"
-                              onClick={() => window.open(spotifyPlaylistUrl, "_blank", "noopener,noreferrer")}
-                              style={{
-                                width: "100%",
-                                border: "none",
-                                borderRadius: 12,
-                                padding: "10px 12px",
-                                background: "rgba(255,255,255,0.12)",
-                                color: "#fff",
-                                fontFamily: "Inter,sans-serif",
-                                fontWeight: 700,
-                                cursor: "pointer",
-                              }}
-                            >
-                              Open in Spotify
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -1118,7 +1452,14 @@ function ProfileScreen({ deadlines, onLogout, theme, onThemeChange }: { deadline
         })}
       </div>
 
-      <button onClick={onLogout} style={{ ...S.ghostBtn, color: "#ef4444", borderColor: "rgba(239,68,68,0.22)", background: "rgba(239,68,68,0.06)", marginBottom: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 8 }}>
+        <button onClick={exportCsv} style={{ ...S.ghostBtn, padding: 12, fontSize: 13 }}>Export CSV</button>
+        <button onClick={backupJson} style={{ ...S.ghostBtn, padding: 12, fontSize: 13 }}>Backup</button>
+      </div>
+      <button onClick={() => fileInputRef.current?.click()} style={{ ...S.ghostBtn, marginTop: 10, padding: 12, fontSize: 13 }}>Restore</button>
+      <input ref={fileInputRef} type="file" accept=".json" onChange={restoreJson} style={{ display: "none" }} />
+
+      <button onClick={onLogout} style={{ ...S.ghostBtn, color: "#ef4444", borderColor: "rgba(239,68,68,0.22)", background: "rgba(239,68,68,0.06)", marginTop: 12, marginBottom: 8 }}>
         Log Out
       </button>
     </div>
@@ -1131,12 +1472,34 @@ const NAV_SCREENS: Screen[] = ["dashboard", "deadlines", "calendar", "notificati
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("login");
-  const [deadlines, setDeadlines] = useState<Deadline[]>(INITIAL_DEADLINES);
+  const [deadlines, setDeadlines] = useState<Deadline[]>(() => {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEYS.deadlines);
+      return raw ? JSON.parse(raw) as Deadline[] : INITIAL_DEADLINES;
+    } catch {
+      return INITIAL_DEADLINES;
+    }
+  });
   const [activeDeadline, setActiveDeadline] = useState<Deadline | null>(null);
   const [activeNav, setActiveNav] = useState<Screen>("dashboard");
-  const [theme, setTheme] = useState<ThemeMode>("Light");
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEYS.theme) as ThemeMode | null;
+      return saved ?? "Light";
+    } catch {
+      return "Light";
+    }
+  });
   const [animKey, setAnimKey] = useState(0);
   const history = useRef<Screen[]>(["login"]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.deadlines, JSON.stringify(deadlines));
+  }, [deadlines]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.theme, theme);
+  }, [theme]);
 
   const navigate = useCallback((s: Screen) => {
     history.current.push(s);
@@ -1231,6 +1594,7 @@ export default function App() {
         {screen === "calendar" && <CalendarScreen deadlines={deadlines} onDeadline={openDeadline} theme={theme} />}
         {screen === "notifications" && <NotificationsScreen deadlines={deadlines} onDeadline={openDeadline} theme={theme} />}
         {screen === "profile" && <ProfileScreen deadlines={deadlines} onLogout={() => { history.current = ["login"]; setScreen("login"); setAnimKey(k => k + 1); }} theme={theme} onThemeChange={setTheme} />}
+        {screen === "reviewer" && <ReviewerScreen onBack={goBack} theme={theme} />}
       </div>
       {showNav && <BottomNav active={activeNav} onNav={navigate} theme={theme} />}
     </PhoneFrame>
